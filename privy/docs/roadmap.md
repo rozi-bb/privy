@@ -29,10 +29,10 @@ Each feature is one loop of build (step 9) → evaluate (step 17). If the evalua
 
 | # | Feature | PRD | Done when | Status |
 |---|---|---|---|---|
-| 9.1 | Conversation memory | #8 | The assistant answers from earlier turns in Studio, and still does after the server restarts | ⬜ |
-| 9.2 | Retrieval practice on FiQA | — | BM25 + dense + RRF + reranker pipeline runs on the FiQA benchmark; NDCG@10 is measured for each stage, matching the reference tutorial | ⬜ |
-| 9.3 | Hybrid retrieval on the GDPR corpus | #7, #9 | Index built from `corpus/` into pgvector + BM25; questions are answered from retrieved passages with correct article citations | ⬜ |
-| 9.4 | Guardrails and grounding | #10, #11 | "I don't know" when unsupported; no invented citations; out-of-scope questions declined | ⬜ |
+| 9.1 | Conversation memory | #8 | The assistant answers from earlier turns, and still does after the server restarts (Postgres checkpointer in the backend) | ✅ |
+| 9.2 | Retrieval practice on FiQA | — | BM25 + dense + RRF + reranker pipeline runs on the FiQA benchmark; NDCG@10 is measured for each stage | 🔄 |
+| 9.3 | Hybrid retrieval on the GDPR corpus | #7, #9 | Index built from `corpus/` into pgvector + BM25; questions are answered from retrieved passages with correct article citations | ✅ |
+| 9.4 | Guardrails and grounding | #10, #11 | "I don't know" when unsupported; no invented citations; out-of-scope questions declined | ✅ |
 
 ### Release
 
@@ -45,7 +45,7 @@ Each feature is one loop of build (step 9) → evaluate (step 17). If the evalua
 
 | # | Step | Status |
 |---|---|---|
-| 10 | Backend skeleton: FastAPI with a health check, calls the agent, reads config from the environment | ⬜ |
+| 10 | Backend skeleton: FastAPI with a health check, calls the agent, reads config from the environment | ✅ |
 | 11 | Postgres in Docker: app tables (accounts, usage) plus pgvector chunks | ⬜ |
 | 12 | Login with accounts; users open only their own threads | ⬜ |
 | 13 | Chat endpoint: check sign-in, run the agent, stream the answer, record usage | ⬜ |

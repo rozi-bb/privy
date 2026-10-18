@@ -37,16 +37,27 @@ The project owner is learning and must be able to explain every part of this cod
 ## Commands
 
 ```bash
-uv run langgraph dev            # dev server + Studio (loads .env)
-uv run pytest -q                # tests
-uv run ruff check .             # lint
+uv run langgraph dev                    # dev server + Studio (loads .env)
+docker compose up -d                    # Postgres (pgvector + checkpoints)
+uv run python scripts/build_index.py    # build the GDPR index in pgvector
+uv run uvicorn backend.main:app --port 8000   # backend
+uv run pytest -q                        # tests
+uv run ruff check .                     # lint
 ```
 
 ## Layout
 
 - `langgraph.json`: tells the server where the graph is (`./src/agent/graph.py:graph`)
-- `src/agent/graph.py`: graph entry point
-- `corpus/`: the knowledge source (official GDPR text) and the indexing scripts that will build the retrieval index
+- `src/agent/graph.py`: graph entry point and the generate node
+- `src/agent/state.py`: the shared graph state
+- `src/agent/corpus.py`: GDPR chunking
+- `src/agent/embeddings.py`: local embeddings (fastembed)
+- `src/agent/retrieval.py`: BM25 keyword search and RRF fusion
+- `src/agent/reranking.py`: Jev reranking
+- `src/backend/`: the FastAPI backend (`main.py` routes, `config.py` settings)
+- `scripts/build_index.py`: chunks the corpus and stores it in pgvector
+- `practice/fiqa/`: the FiQA benchmark pipeline used to learn retrieval mechanics
+- `corpus/`: the knowledge source (official GDPR text)
 - `docs/`: see the table under Project
 - `tests/`: unit and integration tests
 

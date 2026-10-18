@@ -1,0 +1,21 @@
+# Local development only. The credentials below are not secrets: the database
+# listens on localhost and holds the GDPR chunks plus, later, app data.
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: privy
+      POSTGRES_PASSWORD: privy
+      POSTGRES_DB: privy
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U privy -d privy"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  postgres-data:
