@@ -84,6 +84,8 @@ The baseline (step 8) is a single `call_model` node; `retrieve` and `rerank` are
 | `GET /threads/{id}/messages` | yes | The conversation stored in a thread |
 | `POST /threads/{id}/chat` | yes | Ask a question; the answer streams back as Server-Sent Events, and token usage is recorded |
 
+The chat UI (`src/chat_ui/app.py`, Chainlit) is a client of this API like any other: it signs in through `/auth/login`, keeps the returned token in its session, creates a thread on the first question, and relays the streamed answer. It never imports the agent, so provider keys stay in the backend.
+
 A thread's id is also the checkpointer's `thread_id`. Every thread route first checks that the signed-in user owns the thread and answers 404 otherwise, so another user's thread looks exactly like one that does not exist.
 
 ## 5. State

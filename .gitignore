@@ -163,5 +163,7 @@ cython_debug/
 .langgraph_api/
 
 # runtime data
+.chainlit/translations/
+.files/
 data/
 practice/fiqa/data/

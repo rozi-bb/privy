@@ -52,6 +52,8 @@ uv run langgraph dev                    # dev server + Studio (loads .env)
 docker compose up -d                    # Postgres (pgvector + checkpoints)
 uv run python scripts/build_index.py    # build the GDPR index in pgvector
 uv run uvicorn backend.main:app --port 8000   # backend
+uv run chainlit run src/chat_ui/app.py --port 8001   # chat UI (needs the backend; set BACKEND_URL if not on :8000)
+uv run python scripts/create_user.py you@example.com   # create an account (the UI has no sign-up page)
 uv run pytest -q tests/unit_tests       # unit tests (free)
 uv run pytest -q tests/integration_tests/test_backend_*.py   # backend tests: need Docker Postgres, no API calls (free)
 uv run pytest -q tests/integration_tests/test_graph.py       # calls DeepSeek and Jev (costs API credit)
@@ -68,7 +70,10 @@ uv run ruff check .                     # lint
 - `src/agent/retrieval.py`: BM25 keyword search and RRF fusion
 - `src/agent/reranking.py`: Jev reranking
 - `src/backend/`: the FastAPI backend — `main.py` routes and streaming, `auth.py` passwords and login tokens, `db.py` app-table queries, `schema.sql` app tables, `config.py` settings
+- `src/chat_ui/app.py`: the Chainlit chat UI, a pure HTTP client of the backend (never imports the agent or holds provider keys)
+- `.chainlit/config.toml`, `chainlit.md`: Chainlit settings and welcome text
 - `scripts/build_index.py`: chunks the corpus and stores it in pgvector
+- `scripts/create_user.py`: creates an account through the backend
 - `practice/fiqa/`: the FiQA benchmark pipeline used to learn retrieval mechanics
 - `corpus/`: the knowledge source (official GDPR text)
 - `docs/`: see the table under Project

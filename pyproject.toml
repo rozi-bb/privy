@@ -24,6 +24,7 @@ dependencies = [
     "langgraph-checkpoint-postgres>=3.2.0",
     "pyjwt>=2.15.0",
     "pwdlib[argon2]>=0.3.1",
+    "chainlit==2.12.0",
 ]
 
 
@@ -35,11 +36,12 @@ requires = ["setuptools>=83.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["langgraph.templates.agent", "agent", "backend"]
+packages = ["langgraph.templates.agent", "agent", "backend", "chat_ui"]
 [tool.setuptools.package-dir]
 "langgraph.templates.agent" = "src/agent"
 "agent" = "src/agent"
 "backend" = "src/backend"
+"chat_ui" = "src/chat_ui"
 
 
 [tool.setuptools.package-data]
