@@ -49,7 +49,7 @@ flowchart TD
 | `rerank` | Scores each candidate with Jev, keeps Top-N | `src/agent/reranking.py` |
 | `generate` | Writes the answer with DeepSeek, grounded in the retrieved passages, with citations | `src/agent/graph.py` |
 
-The baseline (step 8) is a single `call_model` node; `retrieve` and `rerank` are added in step 9.3.
+The baseline (step 8) is a single `call_model` node; `retrieve` and `rerank` are added in step 11.
 
 ## 3. Retrieval pipeline
 
@@ -84,8 +84,8 @@ Later: `documents` (retrieved passages) and `reranked` are added when the retrie
 
 | Store | Holds | Used from |
 |---|---|---|
-| Postgres (Docker) | pgvector chunks with metadata; later: accounts, threads, usage | step 9.3 (vectors), steps 11–13 (app data) |
-| BM25 index | In-memory token index over the chunks (LangChain `BM25Retriever`) | step 9.3 |
+| Postgres (Docker) | pgvector chunks with metadata; later: accounts, threads, usage | step 11 (vectors), steps 16–18 (app data) |
+| BM25 index | In-memory token index over the chunks (LangChain `BM25Retriever`) | step 11 |
 
 Postgres is the single real database; pgvector lives in it, so vectors and app data share one server.
 
@@ -103,7 +103,7 @@ Every run is traced in LangSmith (project `privy`). Retrieval and reranking runs
 
 ## 9. Evaluation
 
-### 9.1 Practice corpus: FiQA (step 9.2, one-time)
+### 9.1 Practice corpus: FiQA (step 10, one-time)
 
 FiQA is a **practice benchmark**, not part of the product. It is run once to learn and measure retrieval mechanics before the real GDPR corpus is indexed.
 
@@ -112,7 +112,7 @@ FiQA is a **practice benchmark**, not part of the product. It is run once to lea
 - **Where it lives** — `practice/fiqa/`, run with `uv run python practice/fiqa/evaluate.py`. It is not imported by `src/agent/`, not indexed, and not reachable from the product.
 - **Result (200 queries, NDCG@10)** — bm25 0.136 · dense 0.363 · hybrid 0.287 · hybrid+rerank 0.412. The reranker is the biggest single win; naive 50:50 RRF pulled the fused ranking below dense on this paraphrase-heavy corpus, so hybrid's value is corpus-dependent.
 
-### 9.2 Product evaluation: GDPR (step 17)
+### 9.2 Product evaluation: GDPR (step 13)
 
 The GDPR evaluations run in LangSmith with code-based and LLM-as-judge evaluators (groundedness, correctness, relevance) against the targets in `prd.md` §12.
 
@@ -120,6 +120,6 @@ The GDPR evaluations run in LangSmith with code-based and LLM-as-judge evaluator
 
 | Decision | Needed by |
 |---|---|
-| Chunk size for very long articles (e.g., Article 83) | step 9.3 |
-| Top-K / Top-N defaults | step 9.3, tuned in step 17 |
-| Whether to add a cross-encoder as an alternative reranker for comparison | step 9.3 tuning |
+| Chunk size for very long articles (e.g., Article 83) | step 11 |
+| Top-K / Top-N defaults | step 11, tuned in step 13 |
+| Whether to add a cross-encoder as an alternative reranker for comparison | step 11 tuning |

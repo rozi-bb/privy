@@ -21,7 +21,7 @@ Privy works with two distinct document collections. They are unrelated and serve
 | Corpus | Where | Size | Role |
 |---|---|---|---|
 | **GDPR** | `corpus/` | 404 chunks (173 recitals + 231 article chunks from 99 articles) | The product's knowledge source. Indexed into pgvector and retrieved at runtime. |
-| **FiQA** | `practice/fiqa/` | 57,638 docs (financial QA benchmark) | Practice only. Used once (step 9.2) to measure NDCG@10 while learning retrieval mechanics. Never imported by `src/agent/`, never indexed, never reaches an answer. |
+| **FiQA** | `practice/fiqa/` | 57,638 docs (financial QA benchmark) | Practice only. Used once (roadmap step 10) to measure NDCG@10 while learning retrieval mechanics. Never imported by `src/agent/`, never indexed, never reaches an answer. |
 
 FiQA is a **labeled benchmark**, not a knowledge source. Its topic (finance) is irrelevant — only its query→relevant-document labels are used, because the GDPR text has no labeled answers of its own. See `docs/architecture.md` §9.
 
@@ -41,8 +41,8 @@ The project owner is learning and must be able to explain every part of this cod
 - LangGraph 1.x, LangChain 1.x
 - Chat model: DeepSeek through `langchain-deepseek` (`deepseek-flash` for the baseline; `deepseek-v4-pro` if evaluation shows it is needed)
 - Embeddings: `BAAI/bge-small-en-v1.5`, local through fastembed
-- Retrieval: hybrid — BM25 + dense embeddings, fused with Reciprocal Rank Fusion, reranked by Jev (TypeSafe) — built from step 9.3 onward
-- Vector store: Postgres + pgvector (from step 9.3 onward)
+- Retrieval: hybrid — BM25 + dense embeddings, fused with Reciprocal Rank Fusion, reranked by Jev (TypeSafe) — built from roadmap step 11 onward
+- Vector store: Postgres + pgvector (from roadmap step 11 onward)
 - Tracing and evaluation: LangSmith (project `privy`)
 
 ## Commands

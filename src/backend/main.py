@@ -3,7 +3,7 @@
 A thin server around the graph: a health check and a chat endpoint that runs
 the graph with the caller's thread id, so conversation memory is per thread.
 The graph is compiled with a Postgres checkpointer, so conversations survive
-a restart. Sign-in and thread ownership arrive in later steps (12-13).
+a restart. Sign-in and thread ownership arrive in later roadmap steps (17-18).
 """
 
 from __future__ import annotations
