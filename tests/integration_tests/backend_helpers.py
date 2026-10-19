@@ -6,6 +6,7 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage
+from langgraph.config import get_stream_writer
 from langgraph.graph import START, MessagesState, StateGraph
 
 FAKE_USAGE = {"input_tokens": 11, "output_tokens": 7, "total_tokens": 18}
@@ -63,3 +64,21 @@ def sse_events(text: str) -> list[dict]:
         for block in text.split("\n\n")
         if block.startswith("data: ")
     ]
+
+
+def build_correcting_graph(checkpointer: Any) -> Any:
+    """A graph that streams an answer, then replaces it like `verify` does."""
+
+    def generate(state: MessagesState) -> dict:
+        return {"messages": [AIMessage(content="Wrong (Article 99).", id="answer")]}
+
+    def verify(state: MessagesState) -> dict:
+        get_stream_writer()({"type": "replace", "content": "Right (Article 33)."})
+        return {"messages": [AIMessage(content="Right (Article 33).", id="answer")]}
+
+    workflow = StateGraph(MessagesState)
+    workflow.add_node("generate", generate)
+    workflow.add_node("verify", verify)
+    workflow.add_edge(START, "generate")
+    workflow.add_edge("generate", "verify")
+    return workflow.compile(checkpointer=checkpointer)

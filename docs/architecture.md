@@ -37,17 +37,26 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    START((start)) --> RET["retrieve"]
+    START((start)) --> RW["rewrite_query"]
+    RW --> RET["retrieve"]
     RET --> RR["rerank"]
-    RR --> GEN["generate"]
-    GEN --> END((end))
+    RR -->|relevant passages| GEN["generate"]
+    RR -->|none relevant| NF["not_found"]
+    GEN --> VER["verify"]
+    VER --> END((end))
+    NF --> END
 ```
 
 | Node | What it does | Code |
 |---|---|---|
+| `rewrite_query` | Rewrites the last message into a standalone search query in the regulation's terms ("can I sue?" → judicial remedy, compensation; "who do I report it to?" after a breach question → breach notification). One small DeepSeek call | `src/agent/graph.py` |
 | `retrieve` | Hybrid retrieval: BM25 + dense in parallel, fused with RRF, returns Top-K passages | `src/agent/retrieval.py` |
-| `rerank` | Scores each candidate with Jev, keeps Top-N | `src/agent/reranking.py` |
-| `generate` | Writes the answer with DeepSeek, grounded in the retrieved passages, with citations | `src/agent/graph.py` |
+| `rerank` | Scores each candidate with Jev and keeps the Top-N that score at least `MIN_RELEVANCE`; if Jev is down, keeps the fusion order | `src/agent/reranking.py` |
+| `not_found` | No passage is relevant: says the regulation does not cover the question, without calling the model | `src/agent/graph.py` |
+| `generate` | Writes the answer with DeepSeek, grounded in the passages, with citations | `src/agent/graph.py` |
+| `verify` | Checks that every cited article appears in a passage (as its label or referred to in its text). Otherwise rewrites the answer once; if it still cites something else, replaces it with an honest refusal | `src/agent/citations.py`, `src/agent/graph.py` |
+
+`not_found` and `verify` send their text on LangGraph's custom stream, so the backend can pass it on: a correction arrives as a `replace` event because the client has already seen the first version.
 
 The baseline (step 8) is a single `call_model` node; `retrieve` and `rerank` are added in step 11.
 
@@ -93,8 +102,9 @@ A thread's id is also the checkpointer's `thread_id`. Every thread route first c
 | Field | Meaning |
 |---|---|
 | `messages` | The conversation (LangChain messages, `add_messages` reducer) |
-
-Later: `documents` (retrieved passages) and `reranked` are added when the retrieval nodes arrive.
+| `search_query` | The last message rewritten for retrieval |
+| `documents` | Top-K passages from hybrid retrieval |
+| `reranked` | Top-N relevant passages shown to the model |
 
 ## 6. Data stores
 
@@ -130,7 +140,16 @@ FiQA is a **practice benchmark**, not part of the product. It is run once to lea
 
 ### 9.2 Product evaluation: GDPR (step 13)
 
-The GDPR evaluations run in LangSmith with code-based and LLM-as-judge evaluators (groundedness, correctness, relevance) against the targets in `prd.md` §12.
+`evals/run.py` uploads `evals/gdpr_dataset.json` (23 questions: in scope, follow-ups, legal-advice requests, and questions the regulation does not cover) to the LangSmith dataset `privy-gdpr`, runs the real graph on each, and scores the answers against `prd.md` §12:
+
+| Metric | How it is scored |
+|---|---|
+| `right_article` | Code: the answer cites at least one expected article |
+| `no_invented_citations` | Code: the same check `verify` runs — every cited article appears in a passage |
+| `honest_dont_know` | Code: for uncovered questions, the first sentence declines; correctly cited related context may follow |
+| `relevance` | LLM judge (DeepSeek): the answer addresses the question, consistent with the reference notes |
+
+A run costs API credit (about 70 DeepSeek and 460 Jev calls), so it is run deliberately, not in the test suite.
 
 ## 10. Open decisions
 

@@ -9,6 +9,7 @@ lists rises to the top.
 from __future__ import annotations
 
 import asyncio
+import re
 
 from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStore
@@ -16,10 +17,19 @@ from rank_bm25 import BM25Okapi
 
 RRF_K = 60
 
+# Words too common to say anything about which article is meant; left in,
+# "what is the ..." questions match whichever chunks repeat them most.
+STOPWORDS = frozenset(
+    "a an and are as at be by can could do does for from has have how i if in "
+    "is it its me must my of on or our shall should so that the their them "
+    "there these they this to us was we were what when where which who why "
+    "will with would you your".split()
+)
+
 
 def tokenize(text: str) -> list[str]:
-    """Split into lowercase tokens, the input BM25 scores."""
-    return text.lower().split()
+    """Split into lowercase word tokens without punctuation or stopwords."""
+    return [t for t in re.findall(r"[a-z0-9]+", text.lower()) if t not in STOPWORDS]
 
 
 def doc_key(doc: Document) -> str:

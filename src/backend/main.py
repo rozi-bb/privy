@@ -64,9 +64,14 @@ class Token(BaseModel):
 
 
 class NewThread(BaseModel):
-    """Options for a new thread."""
+    """Options for a new thread.
+
+    `id` lets a client use its own id for the thread (the chat UI passes its
+    session's thread id so its sidebar and the backend agree on it).
+    """
 
     title: str = Field(default="New chat", min_length=1, max_length=200)
+    id: UUID | None = None
 
 
 class ThreadOut(BaseModel):
@@ -135,7 +140,14 @@ async def create_thread(
     body: NewThread, request: Request, user: CurrentUser
 ) -> ThreadOut:
     """Start a new thread."""
-    thread = await db.create_thread(request.app.state.pool, user["id"], body.title)
+    try:
+        thread = await db.create_thread(
+            request.app.state.pool, user["id"], body.title, body.id
+        )
+    except db.ThreadIdTaken as error:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Thread id already in use"
+        ) from error
     return ThreadOut(**thread)
 
 
@@ -186,20 +198,28 @@ async def _answer_events(
     """Run the graph and turn its output into Server-Sent Events.
 
     Events: {"type": "token", "content": ...} for each piece of the answer,
-    then {"type": "done"}, or {"type": "error", ...} if the run failed.
+    {"type": "replace", "content": ...} when the graph corrects an answer it
+    already streamed, then {"type": "done"}, or {"type": "error", ...} if the
+    run failed. Answer tokens come from the `generate` node's model stream;
+    answers written without the model (and replacements) arrive on the
+    graph's custom stream already in event form.
     """
     input_tokens = output_tokens = 0
     try:
-        async for message, metadata in request.app.state.graph.astream(
+        async for mode, data in request.app.state.graph.astream(
             {"messages": [{"role": "user", "content": question}]},
             config=_graph_config(thread_id),
-            stream_mode="messages",
+            stream_mode=["messages", "custom"],
         ):
-            if metadata.get("langgraph_node") != "generate":
+            if mode == "custom":
+                yield _sse(data)
                 continue
-            if message.text:
+            message, metadata = data
+            if metadata.get("langgraph_node") == "generate" and message.text:
                 yield _sse({"type": "token", "content": message.text})
-            # With streaming, DeepSeek reports token counts on the last chunk.
+            # Every model call counts (the follow-up rewrite and a citation
+            # retry too). With streaming, DeepSeek reports token counts on the
+            # last chunk of each call.
             usage = getattr(message, "usage_metadata", None)
             if usage:
                 input_tokens += usage["input_tokens"]

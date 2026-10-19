@@ -70,6 +70,7 @@ lint.ignore = [
 "tests/*" = ["D", "UP"]
 "scripts/*" = ["D", "T201"]
 "practice/*" = ["D", "T201"]
+"evals/*" = ["T201"]
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
@@ -81,3 +82,7 @@ dev = [
     "pytest>=9.0.3",
     "ruff>=0.8.2",
 ]
+
+[tool.pytest.ini_options]
+# Lets the tests import the evaluation code in evals/.
+pythonpath = ["."]

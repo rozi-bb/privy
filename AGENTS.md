@@ -57,6 +57,7 @@ uv run python scripts/create_user.py you@example.com   # create an account (the 
 uv run pytest -q tests/unit_tests       # unit tests (free)
 uv run pytest -q tests/integration_tests/test_backend_*.py   # backend tests: need Docker Postgres, no API calls (free)
 uv run pytest -q tests/integration_tests/test_graph.py       # calls DeepSeek and Jev (costs API credit)
+uv run python evals/run.py              # LangSmith evaluation (costs API credit: ~70 DeepSeek + ~460 Jev calls)
 uv run ruff check .                     # lint
 ```
 
@@ -68,9 +69,12 @@ uv run ruff check .                     # lint
 - `src/agent/corpus.py`: GDPR chunking
 - `src/agent/embeddings.py`: local embeddings (fastembed)
 - `src/agent/retrieval.py`: BM25 keyword search and RRF fusion
-- `src/agent/reranking.py`: Jev reranking
+- `src/agent/reranking.py`: Jev reranking and the relevance threshold
+- `src/agent/citations.py`: parses citations in an answer and checks them against the passages
 - `src/backend/`: the FastAPI backend — `main.py` routes and streaming, `auth.py` passwords and login tokens, `db.py` app-table queries, `schema.sql` app tables, `config.py` settings
 - `src/chat_ui/app.py`: the Chainlit chat UI, a pure HTTP client of the backend (never imports the agent or holds provider keys)
+- `src/chat_ui/data_layer.py`: serves the sidebar's chat history from the backend; stores nothing itself
+- `evals/`: the LangSmith evaluation (`gdpr_dataset.json`, `run.py`)
 - `.chainlit/config.toml`, `chainlit.md`: Chainlit settings and welcome text
 - `scripts/build_index.py`: chunks the corpus and stores it in pgvector
 - `scripts/create_user.py`: creates an account through the backend

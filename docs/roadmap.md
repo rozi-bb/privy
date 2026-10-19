@@ -29,10 +29,12 @@ Each feature is built, then evaluated, before the next one starts. If the evalua
 
 | # | Feature | PRD | Done when | Status |
 |---|---|---|---|---|
-| 9 | Conversation memory | #8 | The assistant answers from earlier turns, and still does after the server restarts (Postgres checkpointer in the backend) | ✅ |
+| 9 | Conversation memory | #8 | The assistant answers from earlier turns (follow-up questions are rewritten before retrieval), and still does after the server restarts (Postgres checkpointer in the backend) | ✅ |
 | 10 | Retrieval practice on FiQA | — | BM25 + dense + RRF + reranker pipeline runs on the FiQA benchmark; NDCG@10 is measured for each stage | ✅ |
 | 11 | Hybrid retrieval on the GDPR corpus | #7, #9 | Index built from `corpus/` into pgvector + BM25; questions are answered from retrieved passages with correct article citations | ✅ |
 | 12 | Guardrails and grounding | #10, #11 | "I don't know" when unsupported; no invented citations; out-of-scope questions declined | ✅ |
+
+Steps 9 and 12 were marked done before any evaluation; the first evaluations showed follow-ups failing and guardrails existing only as prompt text. Both were rebuilt and pass in step 13.
 
 FiQA result (200 queries, NDCG@10): `bm25 0.136 · dense 0.363 · hybrid 0.287 · hybrid+rerank 0.412`. The reranker is the biggest single win; naive 50:50 RRF pulls the fused ranking below dense on this paraphrase-heavy corpus, so hybrid's value is corpus-dependent.
 
@@ -40,8 +42,18 @@ FiQA result (200 queries, NDCG@10): `bm25 0.136 · dense 0.363 · hybrid 0.287 �
 
 | # | Step | Status |
 |---|---|---|
-| 13 | Full evaluation in LangSmith (groundedness, correctness, relevance) against prd.md #12 targets | ⬜ |
-| 14 | Update README with a short demo; tag `v0.1.0` | ⬜ |
+| 13 | Full evaluation in LangSmith (groundedness, correctness, relevance) against prd.md #12 targets | ✅ |
+| 14 | Update README with a short demo; tag `v0.1.0` | ✅ |
+
+Evaluation runs (dataset `privy-gdpr`, 23 examples):
+
+| Experiment | right article | no invented citations | honest "I don't know" | relevance | Notes |
+|---|---|---|---|---|---|
+| `privy-e9d6c417` | 89% | 100% | 100% | 95% | Everyday words ("sue", "legal grounds") did not retrieve the right articles |
+| `privy-0f87fd71` | 84% | 100% | 75% | 84% | Query rewrite fixed retrieval, but the citation check rejected articles the passages themselves refer to (fixed since) |
+| `privy-5ea45026` | 100% | 100% | 100%* | 100% | All targets met |
+
+\* LangSmith shows 75%: the metric's refusal pattern missed the curly apostrophe in "I couldn’t find". Rescored from the stored outputs after the fix: 4/4. Before this run, `honest_dont_know` was also changed (with the owner's approval) to accept correctly cited context after an up-front refusal.
 
 ## Tahap 2 — Versi tipis, jalan ujung ke ujung
 
@@ -52,16 +64,17 @@ FiQA result (200 queries, NDCG@10): `bm25 0.136 · dense 0.363 · hybrid 0.287 �
 | 17 | Login with accounts; users open only their own threads | ✅ |
 | 18 | Chat endpoint: check sign-in, run the agent, stream the answer, record usage | ✅ |
 | 19 | Chat UI with Chainlit, as a client of the backend | ✅ |
-| 20 | Business-flow tests: sign-in, wrong password, usage recorded | ✅ |
-| 21 | Security tests: thread isolation, no endpoint without sign-in, API key never reaches the browser | ✅ |
+| 20 | Chat history in the UI: the sidebar lists the user's earlier threads; opening one shows its messages and continues the conversation (backend: `GET /threads`, `GET /threads/{id}/messages`) | ✅ |
+| 21 | Business-flow tests: sign-in, wrong password, usage recorded | ✅ |
+| 22 | Security tests: thread isolation, no endpoint without sign-in, API key never reaches the browser | ✅ |
 
-Step 18 was checked end to end through the chat UI with the real DeepSeek model: the answer streamed and its token counts were recorded. The chat UI does not yet list earlier threads in its sidebar; the backend already stores and lists them (`GET /threads`).
+Step 18 was checked end to end through the chat UI with the real DeepSeek model: the answer streamed and its token counts were recorded.
 
 ## Tahap 3 — Kembangkan bergantian
 
 | # | Step | Status |
 |---|---|---|
-| 22 | Packages and usage limits | ⬜ |
-| 23 | Payments | ⬜ |
-| 24–27 | VPS, domain, HTTPS, backups, release procedure | ⬜ |
-| 28–30 | Quality monitoring, cost per user, error monitoring | ⬜ |
+| 23 | Packages and usage limits | ⬜ |
+| 24 | Payments | ⬜ |
+| 25–28 | VPS, domain, HTTPS, backups, release procedure | ⬜ |
+| 29–31 | Quality monitoring, cost per user, error monitoring | ⬜ |

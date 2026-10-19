@@ -2,9 +2,12 @@
 
 Jev answers one yes/no question per passage: "Is this passage relevant to the
 user's question?" The passages are sorted by Jev's probability of yes, and the
-Top-N are kept. Requests run in parallel behind a semaphore so a batch of
-candidates finishes about as fast as one call; a failed call scores 0 and the
-passage drops to the bottom instead of crashing the request.
+Top-N are kept, but only passages scoring at least `min_relevance`: when
+none qualifies, the question is not covered and the graph says so instead of
+answering from unrelated text. Requests run in parallel behind a semaphore so
+a batch of candidates finishes about as fast as one call. A failed call has
+no score; if every call fails (Jev is down), the fusion order is kept so the
+assistant degrades to unreranked retrieval rather than refusing everything.
 """
 
 from __future__ import annotations
@@ -46,7 +49,7 @@ def _client(loop: asyncio.AbstractEventLoop) -> AsyncTypeSafeClient:
     )
 
 
-async def _relevance(question: str, passage: str) -> float:
+async def _relevance(question: str, passage: str) -> float | None:
     """Ask Jev how likely the passage is to help answer the question."""
     client = _client(asyncio.get_running_loop())
     try:
@@ -56,20 +59,35 @@ async def _relevance(question: str, passage: str) -> float:
                 questions={"relevance": RELEVANCE_QUESTION},
             )
     except Exception:
-        return 0.0
+        return None
     return response.nouls["relevance"].noul
 
 
 async def rerank_documents(
-    question: str, documents: list[Document], top_n: int
+    question: str, documents: list[Document], top_n: int, min_relevance: float
 ) -> list[Document]:
-    """Score every passage with Jev and keep the Top-N by relevance."""
+    """Score every passage with Jev and keep the relevant Top-N."""
     semaphore = asyncio.Semaphore(MAX_CONCURRENCY)
 
-    async def scored(doc: Document) -> tuple[float, Document]:
+    async def scored(doc: Document) -> tuple[float | None, Document]:
         async with semaphore:
             return await _relevance(question, doc.page_content), doc
 
-    scored_docs = await asyncio.gather(*(scored(doc) for doc in documents))
-    scored_docs.sort(key=lambda pair: pair[0], reverse=True)
-    return [doc for _, doc in scored_docs[:top_n]]
+    return select_relevant(
+        await asyncio.gather(*(scored(doc) for doc in documents)), top_n, min_relevance
+    )
+
+
+def select_relevant(
+    scored: list[tuple[float | None, Document]], top_n: int, min_relevance: float
+) -> list[Document]:
+    """Keep the Top-N passages scoring at least min_relevance."""
+    if all(score is None for score, _ in scored):
+        return [doc for _, doc in scored[:top_n]]
+    relevant = [
+        (score, doc)
+        for score, doc in scored
+        if score is not None and score >= min_relevance
+    ]
+    relevant.sort(key=lambda pair: pair[0], reverse=True)
+    return [doc for _, doc in relevant[:top_n]]

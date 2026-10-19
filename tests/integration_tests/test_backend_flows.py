@@ -1,8 +1,16 @@
-"""Business-flow tests (roadmap step 20): sign-in, chat, usage recorded."""
+"""Business-flow tests (roadmap step 21): sign-in, chat, usage recorded."""
+
+from uuid import uuid4
 
 from agent.graph import MODEL_NAME
 
-from .backend_helpers import FAKE_USAGE, failing_graph_builder, sign_up, sse_events
+from .backend_helpers import (
+    FAKE_USAGE,
+    build_correcting_graph,
+    failing_graph_builder,
+    sign_up,
+    sse_events,
+)
 
 
 def test_register_then_sign_in(client) -> None:
@@ -149,3 +157,27 @@ def test_failed_answer_sends_an_error_and_records_no_usage(
     events = sse_events(response.text)
     assert events[-1]["type"] == "error"
     assert db_rows("SELECT count(*) FROM usage") == [(0,)]
+
+
+def test_corrected_answer_replaces_the_streamed_one(make_client) -> None:
+    client = make_client(build_correcting_graph)
+    headers = sign_up(client, "ana@example.com")
+    thread = client.post("/threads", json={}, headers=headers).json()
+
+    response = client.post(
+        f"/threads/{thread['id']}/chat", json={"question": "Hi?"}, headers=headers
+    )
+    events = sse_events(response.text)
+    assert events[-2:] == [
+        {"type": "replace", "content": "Right (Article 33)."},
+        {"type": "done"},
+    ]
+    messages = client.get(f"/threads/{thread['id']}/messages", headers=headers).json()
+    assert messages[-1] == {"role": "assistant", "content": "Right (Article 33)."}
+
+
+def test_client_can_choose_the_thread_id(client) -> None:
+    headers = sign_up(client, "ana@example.com")
+    thread_id = str(uuid4())
+    thread = client.post("/threads", json={"id": thread_id}, headers=headers).json()
+    assert thread["id"] == thread_id

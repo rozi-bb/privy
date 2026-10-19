@@ -24,6 +24,10 @@ class EmailTaken(Exception):
     """Raised when registering an email that already has an account."""
 
 
+class ThreadIdTaken(Exception):
+    """Raised when a client-chosen thread id is already in use."""
+
+
 async def apply_schema(pool: AsyncConnectionPool) -> None:
     """Create the app tables if they do not exist yet."""
     async with pool.connection() as conn:
@@ -67,14 +71,24 @@ async def get_user(pool: AsyncConnectionPool, user_id: UUID) -> Row | None:
     )
 
 
-async def create_thread(pool: AsyncConnectionPool, user_id: UUID, title: str) -> Row:
-    """Start a new thread owned by the user."""
-    row = await _fetch_one(
-        pool,
-        "INSERT INTO threads (user_id, title) VALUES (%s, %s)"
-        " RETURNING id, title, created_at",
-        (user_id, title),
-    )
+async def create_thread(
+    pool: AsyncConnectionPool, user_id: UUID, title: str, thread_id: UUID | None = None
+) -> Row:
+    """Start a new thread owned by the user, with a given id if one is passed.
+
+    Raises ThreadIdTaken if the id exists, whoever owns it, so choosing
+    someone else's id can never attach their conversation to this user.
+    """
+    try:
+        row = await _fetch_one(
+            pool,
+            "INSERT INTO threads (id, user_id, title)"
+            " VALUES (coalesce(%s, gen_random_uuid()), %s, %s)"
+            " RETURNING id, title, created_at",
+            (thread_id, user_id, title),
+        )
+    except UniqueViolation as error:
+        raise ThreadIdTaken(str(thread_id)) from error
     assert row is not None
     return row
 

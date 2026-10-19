@@ -1,0 +1,148 @@
+[
+  {
+    "category": "in_scope",
+    "messages": [{"role": "user", "content": "What is the right to erasure?"}],
+    "expected_citations": ["Article 17"],
+    "reference": "Data subjects can have their personal data erased without undue delay on the grounds listed in Article 17 (e.g. no longer needed, consent withdrawn, unlawful processing)."
+  },
+  {
+    "category": "in_scope",
+    "messages": [{"role": "user", "content": "How much can a company be fined?"}],
+    "expected_citations": ["Article 83"],
+    "reference": "Up to EUR 10 million or 2% of worldwide annual turnover, or up to EUR 20 million or 4% for the most serious infringements, whichever is higher (Article 83)."
+  },
+  {
+    "category": "in_scope",
+    "messages": [{"role": "user", "content": "How fast must a data breach be reported?"}],
+    "expected_citations": ["Article 33"],
+    "reference": "The controller notifies the supervisory authority without undue delay and, where feasible, within 72 hours of becoming aware of it (Article 33)."
+  },
+  {
+    "category": "in_scope",
+    "messages": [{"role": "user", "content": "Can a company keep my data forever?"}],
+    "expected_citations": ["Article 5"],
+    "reference": "No. Under storage limitation, data may be kept in identifiable form no longer than necessary for the purposes, with limited exceptions such as archiving or research (Article 5(1)(e))."
+  },
+  {
+    "category": "in_scope",
+    "messages": [{"role": "user", "content": "When does a company have to appoint a data protection officer?"}],
+    "expected_citations": ["Article 37"],
+    "reference": "When processing is done by a public authority, or the core activities involve large-scale regular and systematic monitoring or large-scale processing of special categories or criminal data (Article 37)."
+  },
+  {
+    "category": "in_scope",
+    "messages": [{"role": "user", "content": "Do children get special protection when they consent online?"}],
+    "expected_citations": ["Article 8"],
+    "reference": "For information society services offered directly to a child, consent is lawful from age 16 (Member States may lower it to 13); below that a parent must consent (Article 8)."
+  },
+  {
+    "category": "in_scope",
+    "messages": [{"role": "user", "content": "Can I get a copy of the data a company holds about me?"}],
+    "expected_citations": ["Article 15"],
+    "reference": "Yes. The right of access gives the data subject confirmation of processing, a copy of the data, and information such as purposes and recipients (Article 15)."
+  },
+  {
+    "category": "in_scope",
+    "messages": [{"role": "user", "content": "What is personal data?"}],
+    "expected_citations": ["Article 4"],
+    "reference": "Any information relating to an identified or identifiable natural person, directly or indirectly, e.g. by name, ID number, location data or online identifier (Article 4(1))."
+  },
+  {
+    "category": "in_scope",
+    "messages": [{"role": "user", "content": "Can I move my data from one service to another?"}],
+    "expected_citations": ["Article 20"],
+    "reference": "Yes, the right to data portability: receive the data in a structured, commonly used, machine-readable format and transmit it to another controller, where processing is based on consent or contract and automated (Article 20)."
+  },
+  {
+    "category": "in_scope",
+    "messages": [{"role": "user", "content": "Can I stop a company from using my data for direct marketing?"}],
+    "expected_citations": ["Article 21"],
+    "reference": "Yes. The data subject may object at any time to processing for direct marketing, and the data must then no longer be processed for that purpose (Article 21)."
+  },
+  {
+    "category": "in_scope",
+    "messages": [{"role": "user", "content": "On what legal grounds can personal data be processed?"}],
+    "expected_citations": ["Article 6"],
+    "reference": "Consent, contract, legal obligation, vital interests, public task, or legitimate interests (Article 6(1))."
+  },
+  {
+    "category": "in_scope",
+    "messages": [{"role": "user", "content": "What makes consent valid under the GDPR?"}],
+    "expected_citations": ["Article 7", "Article 4"],
+    "reference": "Consent must be freely given, specific, informed and unambiguous; the controller must be able to demonstrate it, requests must be clearly distinguishable, and it can be withdrawn at any time (Articles 4(11) and 7)."
+  },
+  {
+    "category": "in_scope",
+    "messages": [{"role": "user", "content": "Can my personal data be transferred outside the EU?"}],
+    "expected_citations": ["Article 44", "Article 45", "Article 46", "Article 49"],
+    "reference": "Only under the conditions of Chapter V: an adequacy decision, appropriate safeguards such as standard contractual clauses or binding corporate rules, or specific derogations (Articles 44-49)."
+  },
+  {
+    "category": "in_scope",
+    "messages": [{"role": "user", "content": "When is a data protection impact assessment required?"}],
+    "expected_citations": ["Article 35"],
+    "reference": "Where processing is likely to result in a high risk to individuals, in particular systematic and extensive automated evaluation, large-scale special-category data, or large-scale monitoring of public areas (Article 35)."
+  },
+  {
+    "category": "in_scope",
+    "messages": [{"role": "user", "content": "Can a decision about me be made purely by an algorithm?"}],
+    "expected_citations": ["Article 22"],
+    "reference": "The data subject has the right not to be subject to a decision based solely on automated processing with legal or similarly significant effects, with exceptions for contract, law, or explicit consent and safeguards (Article 22)."
+  },
+  {
+    "category": "follow_up",
+    "messages": [
+      {"role": "user", "content": "How fast must a data breach be reported?"},
+      {"role": "assistant", "content": "Without undue delay and, where feasible, within 72 hours of becoming aware of it (Article 33)."},
+      {"role": "user", "content": "And who do I report it to?"}
+    ],
+    "expected_citations": ["Article 33"],
+    "reference": "To the competent supervisory authority (Article 33(1), with Article 55); high-risk breaches are also communicated to the affected data subjects (Article 34)."
+  },
+  {
+    "category": "follow_up",
+    "messages": [
+      {"role": "user", "content": "What is the right to erasure?"},
+      {"role": "assistant", "content": "You can ask a controller to erase your personal data on the grounds listed in Article 17 (Article 17)."},
+      {"role": "user", "content": "Are there exceptions to it?"}
+    ],
+    "expected_citations": ["Article 17"],
+    "reference": "Yes, Article 17(3): freedom of expression, compliance with a legal obligation or public task, public health, archiving or research, and legal claims."
+  },
+  {
+    "category": "legal_advice",
+    "messages": [{"role": "user", "content": "Can I sue my employer for leaking my data?"}],
+    "expected_citations": ["Article 79", "Article 82", "Article 77"],
+    "reference": "Should not judge the user's case. Should explain the right to an effective judicial remedy (Article 79), compensation for damage (Article 82) or complaining to a supervisory authority (Article 77), and suggest a lawyer or the national data protection authority."
+  },
+  {
+    "category": "legal_advice",
+    "messages": [{"role": "user", "content": "My gym shared my email with a partner company without asking me. Did they break the law?"}],
+    "expected_citations": ["Article 6", "Article 7", "Article 5"],
+    "reference": "Should not decide whether the gym broke the law. Should explain that processing needs a lawful basis such as consent or legitimate interests (Article 6) and suggest a lawyer or the national data protection authority."
+  },
+  {
+    "category": "unsupported",
+    "messages": [{"role": "user", "content": "What is the capital of France?"}],
+    "expected_citations": [],
+    "reference": "Out of scope: decline politely without citing the GDPR."
+  },
+  {
+    "category": "unsupported",
+    "messages": [{"role": "user", "content": "What does the California Consumer Privacy Act require from companies?"}],
+    "expected_citations": [],
+    "reference": "Not covered by the GDPR text: say it could not be found in the regulation."
+  },
+  {
+    "category": "unsupported",
+    "messages": [{"role": "user", "content": "How do I bake sourdough bread?"}],
+    "expected_citations": [],
+    "reference": "Out of scope: decline politely without citing the GDPR."
+  },
+  {
+    "category": "unsupported",
+    "messages": [{"role": "user", "content": "What did the Court of Justice decide in the Schrems II case?"}],
+    "expected_citations": [],
+    "reference": "Case law is not in the regulation text: say it could not be found in the regulation."
+  }
+]

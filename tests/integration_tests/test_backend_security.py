@@ -1,4 +1,4 @@
-"""Security tests (roadmap step 21).
+"""Security tests (roadmap step 22).
 
 Thread isolation, no endpoint without sign-in, and no secret in any response.
 """
@@ -127,3 +127,17 @@ def test_api_keys_never_reach_the_client(make_client, monkeypatch) -> None:
     for response in responses:
         assert secret not in response.text
         assert secret not in str(response.headers)
+
+
+def test_choosing_someone_elses_thread_id_is_refused(client) -> None:
+    ana = sign_up(client, "ana@example.com")
+    bob = sign_up(client, "bob@example.com")
+    thread = client.post("/threads", json={}, headers=ana).json()
+    client.post(
+        f"/threads/{thread['id']}/chat", json={"question": "Secret?"}, headers=ana
+    )
+
+    taken = client.post("/threads", json={"id": thread["id"]}, headers=bob)
+    assert taken.status_code == 409
+    read = client.get(f"/threads/{thread['id']}/messages", headers=bob)
+    assert read.status_code == 404

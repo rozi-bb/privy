@@ -3,6 +3,7 @@
 The UI never runs the agent and never calls DeepSeek or Jev: it signs in
 through the backend, keeps the backend's login token in the Chainlit
 session, and relays each question to the backend's streaming chat endpoint.
+The sidebar's chat history is read from the backend too (data_layer.py).
 
     uv run chainlit run src/chat_ui/app.py --port 8001
 """
@@ -18,6 +19,9 @@ from typing import Any
 import chainlit as cl
 import httpx
 from chainlit.data.base import BaseDataLayer
+from chainlit.types import ThreadDict
+
+from chat_ui.data_layer import BackendDataLayer
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +39,15 @@ class SessionExpired(Exception):
     """The backend refused the login token."""
 
 
+_history = BackendDataLayer(BACKEND_URL)
+
+
 @cl.data_layer
-def no_data_layer() -> BaseDataLayer | None:
-    """Use no Chainlit data layer: chat history lives in the backend."""
-    # Without this, Chainlit builds its own tables in DATABASE_URL when that
-    # variable is set. The backend owns all data; the UI stores nothing.
-    return None
+def history() -> BaseDataLayer:
+    """Serve the sidebar's chat history from the backend."""
+    # Registering our own layer also stops Chainlit from building its own
+    # tables in DATABASE_URL when that variable is set: the UI stores nothing.
+    return _history
 
 
 async def parse_events(lines: AsyncIterator[str]) -> AsyncIterator[dict[str, Any]]:
@@ -63,10 +70,10 @@ async def sign_in(email: str, password: str) -> cl.User | None:
         return None
     if response.status_code != 200:
         return None
-    return cl.User(
-        identifier=email.strip().lower(),
-        metadata={"token": response.json()["access_token"]},
-    )
+    identifier = email.strip().lower()
+    token = response.json()["access_token"]
+    _history.remember_token(identifier, token)
+    return cl.User(identifier=identifier, metadata={"token": token})
 
 
 def _auth_headers() -> dict[str, str]:
@@ -77,14 +84,19 @@ def _auth_headers() -> dict[str, str]:
 async def _thread_id(client: httpx.AsyncClient, first_question: str) -> str:
     """Return this chat's backend thread, creating it on the first question.
 
-    Created lazily so that opening the page does not leave empty threads.
+    Created lazily so that opening the page does not leave empty threads. The
+    backend thread takes the Chainlit session's thread id, so the chat that is
+    open and its entry in the sidebar are the same thread.
     """
     thread_id = cl.user_session.get("thread_id")
     if thread_id:
         return thread_id
     response = await client.post(
         "/threads",
-        json={"title": first_question[:TITLE_CHARS]},
+        json={
+            "title": first_question[:TITLE_CHARS],
+            "id": cl.context.session.thread_id,
+        },
         headers=_auth_headers(),
     )
     if response.status_code == 401:
@@ -92,7 +104,15 @@ async def _thread_id(client: httpx.AsyncClient, first_question: str) -> str:
     response.raise_for_status()
     thread_id = response.json()["id"]
     cl.user_session.set("thread_id", thread_id)
+    user: cl.User = cl.user_session.get("user")
+    _history.remember_owner(thread_id, user.identifier)
     return thread_id
+
+
+@cl.on_chat_resume
+async def resume(thread: ThreadDict) -> None:
+    """Continue a conversation opened from the sidebar."""
+    cl.user_session.set("thread_id", thread["id"])
 
 
 @cl.on_message
@@ -116,6 +136,10 @@ async def answer(message: cl.Message) -> None:
                 async for event in parse_events(response.aiter_lines()):
                     if event["type"] == "token":
                         await reply.stream_token(event["content"])
+                    elif event["type"] == "replace":
+                        # The backend corrected an answer it already streamed.
+                        reply.content = event["content"]
+                        await reply.update()
                     elif event["type"] == "error":
                         await cl.ErrorMessage(content=event["message"]).send()
                         return

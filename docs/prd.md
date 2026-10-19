@@ -105,4 +105,4 @@ Invented citations are pass/fail: a single failure blocks a release.
 ## Product side (later releases)
 
 - **Login** — accounts, so conversations are private per user (roadmap step 17).
-- **Packages and usage limits** — decided before any public release (roadmap steps 22–23).
+- **Packages and usage limits** — decided before any public release (roadmap steps 23–24).

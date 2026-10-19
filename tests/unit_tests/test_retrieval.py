@@ -7,6 +7,10 @@ def test_tokenize_lowercases_and_splits() -> None:
     assert tokenize("Hello  WORLD") == ["hello", "world"]
 
 
+def test_tokenize_drops_punctuation_and_stopwords() -> None:
+    assert tokenize("What is the processing, (lawful)?") == ["processing", "lawful"]
+
+
 def test_doc_key_uses_kind_number_and_part() -> None:
     doc = Document(
         page_content="text", metadata={"kind": "article", "number": 17, "part": 2}
