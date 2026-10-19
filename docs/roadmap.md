@@ -74,7 +74,6 @@ Step 18 was checked end to end through the chat UI with the real DeepSeek model:
 
 | # | Step | Status |
 |---|---|---|
-| 23 | Packages and usage limits | ⬜ |
-| 24 | Payments | ⬜ |
-| 25–28 | VPS, domain, HTTPS, backups, release procedure | ⬜ |
-| 29–31 | Quality monitoring, cost per user, error monitoring | ⬜ |
+| 23–25 | Quality monitoring, cost per user, error monitoring | ⬜ |
+
+Privy is a personal project that runs on the local machine (Docker Postgres, backend, chat UI). It is not deployed to a server and has no paying users, so there are no steps for a VPS, domain, HTTPS, backups, a release procedure, packages and usage limits, or payments.

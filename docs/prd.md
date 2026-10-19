@@ -102,7 +102,7 @@ Invented citations are pass/fail: a single failure blocks a release.
 7. "Can I get a copy of my data?" → Article 15.
 8. "What is personal data?" → Article 4(1).
 
-## Product side (later releases)
+## Product side
 
 - **Login** — accounts, so conversations are private per user (roadmap step 17).
-- **Packages and usage limits** — decided before any public release (roadmap steps 23–24).
+- No packages, usage limits, or payments: Privy is a personal project that runs locally, not a public service.

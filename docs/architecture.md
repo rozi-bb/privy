@@ -79,7 +79,7 @@ The baseline (step 8) is a single `call_model` node; `retrieve` and `rerank` are
 
 ## 4. How the agent runs (decision)
 
-**Option A — the graph is called directly from our own backend.** A FastAPI backend imports the graph and streams answers; identity, threads, and the checkpointer are managed by the backend. Chosen because: one server, full control, easier to explain, and matches how the reference project is built. The LangGraph Agent Server is not used in production; `langgraph dev` and Studio are for development only.
+**Option A — the graph is called directly from our own backend.** A FastAPI backend imports the graph and streams answers; identity, threads, and the checkpointer are managed by the backend. Chosen because: one server, full control, easier to explain, and matches how the reference project is built. The LangGraph Agent Server is not used; `langgraph dev` and Studio are for development only. Everything runs on the local machine: Privy is a personal project and is not deployed to a server.
 
 ### Backend API
 

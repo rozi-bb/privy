@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS threads (
 
 CREATE INDEX IF NOT EXISTS threads_user_id_idx ON threads (user_id, created_at);
 
--- One row per answered question. Feeds usage limits and cost per user later.
+-- One row per answered question. Feeds cost-per-user monitoring later.
 CREATE TABLE IF NOT EXISTS usage (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
