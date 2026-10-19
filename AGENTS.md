@@ -14,6 +14,17 @@ Privy, an assistant that answers questions about the GDPR (EU General Data Prote
 
 Do not copy content from those documents into this file. Link to them.
 
+## Two corpora — do not confuse them
+
+Privy works with two distinct document collections. They are unrelated and serve different purposes:
+
+| Corpus | Where | Size | Role |
+|---|---|---|---|
+| **GDPR** | `corpus/` | 407 chunks (99 articles + 173 recitals) | The product's knowledge source. Indexed into pgvector and retrieved at runtime. |
+| **FiQA** | `practice/fiqa/` | 57,638 docs (financial QA benchmark) | Practice only. Used once (step 9.2) to measure NDCG@10 while learning retrieval mechanics. Never imported by `src/agent/`, never indexed, never reaches an answer. |
+
+FiQA is a **labeled benchmark**, not a knowledge source. Its topic (finance) is irrelevant — only its query→relevant-document labels are used, because the GDPR text has no labeled answers of its own. See `docs/architecture.md` §9.
+
 ## How we work
 
 The project owner is learning and must be able to explain every part of this codebase in an interview. Optimize for understanding, not speed.

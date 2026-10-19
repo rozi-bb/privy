@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | Draft |
-| Last updated | 2026-10-18 |
+| Last updated | 2026-10-19 |
 
 ## 1. Summary
 
@@ -41,6 +41,8 @@ Privy is a precise, plain-language assistant. Short answers first, then the arti
 
 - The official GDPR text: `corpus/gdpr.pdf` (EUR-Lex, Regulation (EU) 2016/679, OJ L 119, 4.5.2016).
 - Retrieval is hybrid: BM25 (keyword) + dense embeddings (semantic), fused with Reciprocal Rank Fusion, reranked by Jev.
+
+> **FiQA is not a knowledge source.** The FiQA dataset (`practice/fiqa/`, a financial question-answering benchmark) is used only once as labeled practice data (step 9.2) to measure retrieval quality. It is never indexed, never retrieved, and never reaches an answer. See `architecture.md` §9.
 
 ## 8. Memory policy
 

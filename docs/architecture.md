@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Status | Draft |
-| Last updated | 2026-10-18 |
+| Last updated | 2026-10-19 |
 
 How Privy is built. What it does is in [prd.md](prd.md).
 
@@ -103,7 +103,18 @@ Every run is traced in LangSmith (project `privy`). Retrieval and reranking runs
 
 ## 9. Evaluation
 
-The FiQA benchmark is used as a **practice corpus** to learn hybrid retrieval mechanics (BM25, embeddings, RRF, reranking) with labeled ground truth, before the real GDPR corpus is indexed. The GDPR evaluations then run in LangSmith with code-based and LLM-as-judge evaluators (roadmap step 17).
+### 9.1 Practice corpus: FiQA (step 9.2, one-time)
+
+FiQA is a **practice benchmark**, not part of the product. It is run once to learn and measure retrieval mechanics before the real GDPR corpus is indexed.
+
+- **Why a benchmark at all** — measuring retrieval quality (NDCG@10) requires labeled ground truth: for each query, which documents are actually relevant. The GDPR text has no such labels.
+- **Why FiQA** — FiQA is a standard BeIR benchmark with labeled query→document pairs. It happens to be about finance, but the topic is irrelevant: only the labels are used, to compare BM25 vs dense vs hybrid vs reranker. There is no standard labeled "GDPR Q&A" benchmark.
+- **Where it lives** — `practice/fiqa/`, run with `uv run python practice/fiqa/evaluate.py`. It is not imported by `src/agent/`, not indexed, and not reachable from the product.
+- **Result (200 queries, NDCG@10)** — bm25 0.136 · dense 0.363 · hybrid 0.287 · hybrid+rerank 0.412. The reranker is the biggest single win; naive 50:50 RRF pulled the fused ranking below dense on this paraphrase-heavy corpus, so hybrid's value is corpus-dependent.
+
+### 9.2 Product evaluation: GDPR (step 17)
+
+The GDPR evaluations run in LangSmith with code-based and LLM-as-judge evaluators (groundedness, correctness, relevance) against the targets in `prd.md` §12.
 
 ## 10. Open decisions
 
