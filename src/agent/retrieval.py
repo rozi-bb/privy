@@ -25,6 +25,8 @@ def tokenize(text: str) -> list[str]:
 def doc_key(doc: Document) -> str:
     """Stable identity of a chunk, used to dedupe during fusion."""
     meta = doc.metadata or {}
+    if "doc_id" in meta:
+        return f"doc_id:{meta['doc_id']}"
     return f"{meta.get('kind')}:{meta.get('number')}:{meta.get('part', 0)}"
 
 

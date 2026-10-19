@@ -19,6 +19,11 @@ def test_doc_key_without_part() -> None:
     assert doc_key(doc) == "recital:26:0"
 
 
+def test_doc_key_uses_doc_id_when_present() -> None:
+    doc = Document(page_content="text", metadata={"doc_id": "abc123"})
+    assert doc_key(doc) == "doc_id:abc123"
+
+
 def test_rrf_raises_docs_ranked_high_in_both_lists() -> None:
     a = Document(page_content="shared", metadata={"kind": "article", "number": 1})
     b = Document(page_content="only bm25", metadata={"kind": "article", "number": 2})

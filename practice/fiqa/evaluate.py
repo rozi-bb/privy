@@ -18,11 +18,14 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from dotenv import load_dotenv
 from langchain_core.documents import Document
 
 from agent.embeddings import LocalEmbeddings
 from agent.reranking import rerank_documents
 from agent.retrieval import KeywordRetriever, reciprocal_rank_fusion
+
+load_dotenv()
 
 DATA_DIR = Path(__file__).parent / "data"
 
