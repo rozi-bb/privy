@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Last updated | 2026-10-18 |
+| Last updated | 2026-10-19 |
 
 The order of work. What each feature must do is in [prd.md](prd.md); how it is built is in [architecture.md](architecture.md). Step numbers refer to the project's development playbook.
 
@@ -30,9 +30,11 @@ Each feature is one loop of build (step 9) → evaluate (step 17). If the evalua
 | # | Feature | PRD | Done when | Status |
 |---|---|---|---|---|
 | 9.1 | Conversation memory | #8 | The assistant answers from earlier turns, and still does after the server restarts (Postgres checkpointer in the backend) | ✅ |
-| 9.2 | Retrieval practice on FiQA | — | BM25 + dense + RRF + reranker pipeline runs on the FiQA benchmark; NDCG@10 is measured for each stage | 🔄 |
+| 9.2 | Retrieval practice on FiQA | — | BM25 + dense + RRF + reranker pipeline runs on the FiQA benchmark; NDCG@10 is measured for each stage | ✅ |
 | 9.3 | Hybrid retrieval on the GDPR corpus | #7, #9 | Index built from `corpus/` into pgvector + BM25; questions are answered from retrieved passages with correct article citations | ✅ |
 | 9.4 | Guardrails and grounding | #10, #11 | "I don't know" when unsupported; no invented citations; out-of-scope questions declined | ✅ |
+
+FiQA result (200 queries, NDCG@10): `bm25 0.136 · dense 0.363 · hybrid 0.287 · hybrid+rerank 0.412`. The reranker is the biggest single win; naive 50:50 RRF pulls the fused ranking below dense on this paraphrase-heavy corpus, so hybrid's value is corpus-dependent.
 
 ### Release
 
