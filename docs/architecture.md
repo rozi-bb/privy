@@ -74,8 +74,8 @@ The baseline (step 8) is a single `call_model` node; `retrieve` and `rerank` are
 
 1. **Hybrid**: the question is searched two ways in parallel — dense (embedding, cosine over pgvector) and sparse (BM25 over chunk tokens).
 2. **Fusion**: Reciprocal Rank Fusion combines the two rankings; a chunk ranked high in both rises to the top.
-3. **Top-K**: the fused top-K (default 20) moves to reranking.
-4. **Rerank**: Jev scores each candidate's relevance to the question (probability), in parallel with retries for rate limits; the Top-N (default 3–5) go to the LLM.
+3. **Top-K**: the fused top 20 (`TOP_K`) move to reranking.
+4. **Rerank**: Jev scores each candidate's relevance to the question (probability), in parallel; the best 4 (`TOP_N`) that score at least 0.5 (`MIN_RELEVANCE`) go to the LLM.
 
 ## 4. How the agent runs (decision)
 
@@ -153,8 +153,8 @@ A run costs API credit (about 70 DeepSeek and 460 Jev calls), so it is run delib
 
 ## 10. Open decisions
 
-| Decision | Needed by |
-|---|---|
-| Chunk size for very long articles (e.g., Article 83) | step 11 |
-| Top-K / Top-N defaults | step 11, tuned in step 13 |
-| Whether to add a cross-encoder as an alternative reranker for comparison | step 11 tuning |
+| Decision | Current value | Status |
+|---|---|---|
+| Top-K, Top-N, and the relevance threshold | `TOP_K = 20`, `TOP_N = 4`, `MIN_RELEVANCE = 0.5` (`src/agent/graph.py`) | **Not tuned** (roadmap step 23). These are the starting values from step 11. The step 13 evaluation passed with them, but no other values were compared. Tuning means running the evaluation for several combinations (e.g. Top-K 10/20/30, threshold 0.3/0.5/0.7) and keeping the cheapest one that still meets the targets; a lower Top-K also means fewer Jev calls per question. Each combination is one paid evaluation run. |
+| Chunk size for very long articles (e.g., Article 83) | Articles over 1,600 characters are split into paragraph groups of about 1,200 (`src/agent/corpus.py`) | **Not tuned.** `OVERLAP_CHARS = 200` is defined but not used: parts do not overlap. |
+| A cross-encoder as an alternative reranker, for comparison with Jev | — | **Not done.** |

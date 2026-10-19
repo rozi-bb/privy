@@ -74,6 +74,7 @@ Step 18 was checked end to end through the chat UI with the real DeepSeek model:
 
 | # | Step | Status |
 |---|---|---|
-| 23–25 | Quality monitoring, cost per user, error monitoring | ⬜ |
+| 23 | Tune retrieval: compare `TOP_K`, `TOP_N`, and `MIN_RELEVANCE` combinations with the step 13 evaluation and keep the cheapest one that still meets the prd.md §12 targets (see architecture.md §10) | ⬜ |
+| 24–26 | Quality monitoring, cost per user, error monitoring | ⬜ |
 
 Privy is a personal project that runs on the local machine (Docker Postgres, backend, chat UI). It is not deployed to a server and has no paying users, so there are no steps for a VPS, domain, HTTPS, backups, a release procedure, packages and usage limits, or payments.
