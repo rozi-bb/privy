@@ -58,7 +58,9 @@ def _format_passages(documents: list[Document]) -> str:
         meta = doc.metadata or {}
         if meta.get("kind") in ("article", "recital"):
             label = f"{meta['kind'].title()} {meta['number']}"
-            if meta.get("part"):
+            if meta.get("point"):
+                label = f"{label}({meta['point']})"
+            elif meta.get("part"):
                 label = f"{label} (part {meta['part']})"
         else:
             label = "Passage"

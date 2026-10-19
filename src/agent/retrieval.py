@@ -27,7 +27,10 @@ def doc_key(doc: Document) -> str:
     meta = doc.metadata or {}
     if "doc_id" in meta:
         return f"doc_id:{meta['doc_id']}"
-    return f"{meta.get('kind')}:{meta.get('number')}:{meta.get('part', 0)}"
+    return (
+        f"{meta.get('kind')}:{meta.get('number')}"
+        f":{meta.get('part', 0)}:{meta.get('point', 0)}"
+    )
 
 
 class KeywordRetriever:

@@ -11,12 +11,22 @@ def test_doc_key_uses_kind_number_and_part() -> None:
     doc = Document(
         page_content="text", metadata={"kind": "article", "number": 17, "part": 2}
     )
-    assert doc_key(doc) == "article:17:2"
+    assert doc_key(doc) == "article:17:2:0"
 
 
 def test_doc_key_without_part() -> None:
     doc = Document(page_content="text", metadata={"kind": "recital", "number": 26})
-    assert doc_key(doc) == "recital:26:0"
+    assert doc_key(doc) == "recital:26:0:0"
+
+
+def test_doc_key_tells_definition_points_apart() -> None:
+    first = Document(
+        page_content="a", metadata={"kind": "article", "number": 4, "point": 1}
+    )
+    second = Document(
+        page_content="b", metadata={"kind": "article", "number": 4, "point": 2}
+    )
+    assert doc_key(first) != doc_key(second)
 
 
 def test_doc_key_uses_doc_id_when_present() -> None:

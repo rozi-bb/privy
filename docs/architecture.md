@@ -56,8 +56,8 @@ The baseline (step 8) is a single `call_model` node; `retrieve` and `rerank` are
 ### Indexing
 
 1. **Load**: read `corpus/gdpr.pdf` (or its extracted text `corpus/gdpr.txt`).
-2. **Preprocess**: strip page headers and footnotes, normalize whitespace.
-3. **Chunk**: article-aware chunking — one chunk per article (or per recital), with overlap only inside very long articles. The GDPR's natural unit is the article, so chunking follows it.
+2. **Preprocess**: strip page headers, footnotes, and chapter/section headings; normalize whitespace. The text is split at "HAVE ADOPTED THIS REGULATION:" into recitals (before) and articles (after), because recital headers and Article 4's definition points look identical ("(1)") and only their position tells them apart.
+3. **Chunk**: article-aware chunking — one chunk per article (or per recital). Article 4 gets one chunk per definition, cited as "Article 4(1)"; other very long articles are split into paragraph groups. The GDPR's natural unit is the article, so chunking follows it.
 4. **Embed**: each chunk with `BAAI/bge-small-en-v1.5` (local, fastembed).
 5. **Store**: vectors in Postgres with pgvector (HNSW index, cosine similarity); the same chunks feed the BM25 index.
 

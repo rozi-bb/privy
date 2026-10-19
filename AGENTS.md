@@ -20,7 +20,7 @@ Privy works with two distinct document collections. They are unrelated and serve
 
 | Corpus | Where | Size | Role |
 |---|---|---|---|
-| **GDPR** | `corpus/` | 407 chunks (99 articles + 173 recitals) | The product's knowledge source. Indexed into pgvector and retrieved at runtime. |
+| **GDPR** | `corpus/` | 404 chunks (173 recitals + 231 article chunks from 99 articles) | The product's knowledge source. Indexed into pgvector and retrieved at runtime. |
 | **FiQA** | `practice/fiqa/` | 57,638 docs (financial QA benchmark) | Practice only. Used once (step 9.2) to measure NDCG@10 while learning retrieval mechanics. Never imported by `src/agent/`, never indexed, never reaches an answer. |
 
 FiQA is a **labeled benchmark**, not a knowledge source. Its topic (finance) is irrelevant — only its query→relevant-document labels are used, because the GDPR text has no labeled answers of its own. See `docs/architecture.md` §9.
