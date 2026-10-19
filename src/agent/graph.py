@@ -106,7 +106,8 @@ async def rerank(state: State) -> dict:
 
 def generate(state: State) -> dict:
     """Write the answer from the Top-N passages, with citations."""
-    model = ChatDeepSeek(model=MODEL_NAME)
+    # stream_usage: report token counts while streaming, for the usage table.
+    model = ChatDeepSeek(model=MODEL_NAME, stream_usage=True)
     passages = _format_passages(state["reranked"] or [])
     response = model.invoke(
         [

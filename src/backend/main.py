@@ -1,64 +1,267 @@
 """FastAPI backend for Privy.
 
-A thin server around the graph: a health check and a chat endpoint that runs
-the graph with the caller's thread id, so conversation memory is per thread.
-The graph is compiled with a Postgres checkpointer, so conversations survive
-a restart. Sign-in and thread ownership arrive in later roadmap steps (17-18).
+The graph runs inside this server (architecture.md §4, option A). Users
+register and sign in, own their threads, and chat in them; answers stream
+back as Server-Sent Events and every answered question is recorded in the
+usage table. Conversations are stored by the Postgres checkpointer under the
+thread id, so they survive a restart.
 """
 
 from __future__ import annotations
 
+import json
+import logging
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from datetime import datetime
+from typing import Any
+from uuid import UUID
 
-from fastapi import FastAPI, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg_pool import AsyncConnectionPool
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
-from agent.graph import build_graph
-from backend.config import DATABASE_URL
+from agent.graph import MODEL_NAME, build_graph
+from backend import config, db
+from backend.auth import CurrentUser, create_token, hash_password, verify_password
 
-app_state: dict = {}
+logger = logging.getLogger(__name__)
 
+GraphBuilder = Callable[..., Any]
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Open the pool, set up the checkpointer, and build the graph."""
-    # The checkpointer needs autocommit and no prepared statements.
-    pool = AsyncConnectionPool(
-        DATABASE_URL,
-        kwargs={"autocommit": True, "prepare_threshold": 0},
-        open=False,
-    )
-    async with pool:
-        checkpointer = AsyncPostgresSaver(pool)
-        await checkpointer.setup()
-        app_state["graph"] = build_graph(checkpointer=checkpointer)
-        yield
+router = APIRouter()
 
 
-app = FastAPI(title="Privy", lifespan=lifespan)
+class Credentials(BaseModel):
+    """Email and password, for registering and signing in."""
+
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def _normalize_email(cls, email: str) -> str:
+        email = email.strip().lower()
+        if "@" not in email:
+            raise ValueError("not an email address")
+        return email
 
 
-class ChatRequest(BaseModel):
-    """A question and the thread it belongs to."""
+class UserOut(BaseModel):
+    """A user as shown to the client (never the password hash)."""
 
-    question: str
-    thread_id: str = "default"
+    id: UUID
+    email: str
 
 
-@app.get("/health")
-def health() -> dict:
+class Token(BaseModel):
+    """A login token for the Authorization header."""
+
+    access_token: str
+    token_type: str = "bearer"
+
+
+class NewThread(BaseModel):
+    """Options for a new thread."""
+
+    title: str = Field(default="New chat", min_length=1, max_length=200)
+
+
+class ThreadOut(BaseModel):
+    """A thread the user owns."""
+
+    id: UUID
+    title: str
+    created_at: datetime
+
+
+class MessageOut(BaseModel):
+    """One turn of a conversation."""
+
+    role: str
+    content: str
+
+
+class Question(BaseModel):
+    """A question asked in a thread."""
+
+    question: str = Field(min_length=1, max_length=4000)
+
+
+@router.get("/health")
+def health() -> dict[str, str]:
     """Server is up; the database is checked by the graph when it runs."""
     return {"status": "ok"}
 
 
-@app.post("/chat")
-async def chat(request: ChatRequest, http: Request) -> dict:
-    """Run the graph for the question and return the answer."""
-    graph = app_state["graph"]
-    result = await graph.ainvoke(
-        {"messages": [{"role": "user", "content": request.question}]},
-        config={"configurable": {"thread_id": request.thread_id}},
+@router.post("/auth/register", status_code=status.HTTP_201_CREATED)
+async def register(body: Credentials, request: Request) -> UserOut:
+    """Create an account."""
+    try:
+        user = await db.create_user(
+            request.app.state.pool, body.email, hash_password(body.password)
+        )
+    except db.EmailTaken as error:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Email already registered"
+        ) from error
+    return UserOut(**user)
+
+
+@router.post("/auth/login")
+async def login(body: Credentials, request: Request) -> Token:
+    """Exchange email and password for a login token."""
+    user = await db.get_user_by_email(request.app.state.pool, body.email)
+    password_ok = verify_password(
+        body.password, user["password_hash"] if user else None
     )
-    return {"answer": result["messages"][-1].content}
+    if user is None or not password_ok:
+        # One message for both cases, so the response does not reveal which
+        # emails have an account.
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Wrong email or password")
+    return Token(access_token=create_token(user["id"]))
+
+
+@router.get("/me")
+async def me(user: CurrentUser) -> UserOut:
+    """Return the signed-in user."""
+    return UserOut(**user)
+
+
+@router.post("/threads", status_code=status.HTTP_201_CREATED)
+async def create_thread(
+    body: NewThread, request: Request, user: CurrentUser
+) -> ThreadOut:
+    """Start a new thread."""
+    thread = await db.create_thread(request.app.state.pool, user["id"], body.title)
+    return ThreadOut(**thread)
+
+
+@router.get("/threads")
+async def list_threads(request: Request, user: CurrentUser) -> list[ThreadOut]:
+    """List the user's threads, newest first."""
+    threads = await db.list_threads(request.app.state.pool, user["id"])
+    return [ThreadOut(**thread) for thread in threads]
+
+
+async def _owned_thread(
+    request: Request, thread_id: UUID, user: dict[str, Any]
+) -> None:
+    # 404 rather than 403: another user's thread must be indistinguishable
+    # from one that does not exist.
+    if await db.get_thread(request.app.state.pool, thread_id, user["id"]) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Thread not found")
+
+
+def _graph_config(thread_id: UUID) -> dict[str, Any]:
+    return {"configurable": {"thread_id": str(thread_id)}}
+
+
+_ROLES = {"human": "user", "ai": "assistant"}
+
+
+@router.get("/threads/{thread_id}/messages")
+async def thread_messages(
+    thread_id: UUID, request: Request, user: CurrentUser
+) -> list[MessageOut]:
+    """Return the conversation stored in a thread."""
+    await _owned_thread(request, thread_id, user)
+    state = await request.app.state.graph.aget_state(_graph_config(thread_id))
+    return [
+        MessageOut(role=_ROLES[message.type], content=message.text)
+        for message in state.values.get("messages", [])
+        if message.type in _ROLES
+    ]
+
+
+def _sse(payload: dict[str, Any]) -> str:
+    return f"data: {json.dumps(payload)}\n\n"
+
+
+async def _answer_events(
+    request: Request, user_id: UUID, thread_id: UUID, question: str
+) -> AsyncIterator[str]:
+    """Run the graph and turn its output into Server-Sent Events.
+
+    Events: {"type": "token", "content": ...} for each piece of the answer,
+    then {"type": "done"}, or {"type": "error", ...} if the run failed.
+    """
+    input_tokens = output_tokens = 0
+    try:
+        async for message, metadata in request.app.state.graph.astream(
+            {"messages": [{"role": "user", "content": question}]},
+            config=_graph_config(thread_id),
+            stream_mode="messages",
+        ):
+            if metadata.get("langgraph_node") != "generate":
+                continue
+            if message.text:
+                yield _sse({"type": "token", "content": message.text})
+            # With streaming, DeepSeek reports token counts on the last chunk.
+            usage = getattr(message, "usage_metadata", None)
+            if usage:
+                input_tokens += usage["input_tokens"]
+                output_tokens += usage["output_tokens"]
+    except Exception:
+        logger.exception("Answer failed in thread %s", thread_id)
+        yield _sse(
+            {"type": "error", "message": "Privy could not answer. Please try again."}
+        )
+        return
+
+    await db.record_usage(
+        request.app.state.pool,
+        user_id,
+        thread_id,
+        MODEL_NAME,
+        input_tokens,
+        output_tokens,
+    )
+    yield _sse({"type": "done"})
+
+
+@router.post("/threads/{thread_id}/chat")
+async def chat(
+    thread_id: UUID, body: Question, request: Request, user: CurrentUser
+) -> StreamingResponse:
+    """Ask a question in a thread and stream the answer."""
+    # Checked before streaming starts, so a refusal is a normal HTTP error.
+    await _owned_thread(request, thread_id, user)
+    return StreamingResponse(
+        _answer_events(request, user["id"], thread_id, body.question),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+def create_app(
+    database_url: str = config.DATABASE_URL, build: GraphBuilder = build_graph
+) -> FastAPI:
+    """Build the app; tests pass their own database and graph."""
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        if not config.JWT_SECRET:
+            raise RuntimeError("JWT_SECRET is not set; add it to .env")
+        # Connection settings the Postgres checkpointer requires.
+        pool = AsyncConnectionPool(
+            database_url,
+            kwargs={"autocommit": True, "prepare_threshold": 0},
+            open=False,
+        )
+        async with pool:
+            await db.apply_schema(pool)
+            checkpointer = AsyncPostgresSaver(pool)
+            await checkpointer.setup()
+            app.state.pool = pool
+            app.state.graph = build(checkpointer=checkpointer)
+            yield
+
+    app = FastAPI(title="Privy", lifespan=lifespan)
+    app.include_router(router)
+    return app
+
+
+app = create_app()

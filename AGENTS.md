@@ -52,7 +52,9 @@ uv run langgraph dev                    # dev server + Studio (loads .env)
 docker compose up -d                    # Postgres (pgvector + checkpoints)
 uv run python scripts/build_index.py    # build the GDPR index in pgvector
 uv run uvicorn backend.main:app --port 8000   # backend
-uv run pytest -q                        # tests
+uv run pytest -q tests/unit_tests       # unit tests (free)
+uv run pytest -q tests/integration_tests/test_backend_*.py   # backend tests: need Docker Postgres, no API calls (free)
+uv run pytest -q tests/integration_tests/test_graph.py       # calls DeepSeek and Jev (costs API credit)
 uv run ruff check .                     # lint
 ```
 
@@ -65,7 +67,7 @@ uv run ruff check .                     # lint
 - `src/agent/embeddings.py`: local embeddings (fastembed)
 - `src/agent/retrieval.py`: BM25 keyword search and RRF fusion
 - `src/agent/reranking.py`: Jev reranking
-- `src/backend/`: the FastAPI backend (`main.py` routes, `config.py` settings)
+- `src/backend/`: the FastAPI backend — `main.py` routes and streaming, `auth.py` passwords and login tokens, `db.py` app-table queries, `schema.sql` app tables, `config.py` settings
 - `scripts/build_index.py`: chunks the corpus and stores it in pgvector
 - `practice/fiqa/`: the FiQA benchmark pipeline used to learn retrieval mechanics
 - `corpus/`: the knowledge source (official GDPR text)

@@ -48,12 +48,14 @@ FiQA result (200 queries, NDCG@10): `bm25 0.136 · dense 0.363 · hybrid 0.287 �
 | # | Step | Status |
 |---|---|---|
 | 15 | Backend skeleton: FastAPI with a health check, calls the agent, reads config from the environment | ✅ |
-| 16 | Postgres in Docker: app tables (accounts, usage) plus pgvector chunks | ⬜ |
-| 17 | Login with accounts; users open only their own threads | ⬜ |
-| 18 | Chat endpoint: check sign-in, run the agent, stream the answer, record usage | ⬜ |
+| 16 | Postgres in Docker: app tables (accounts, usage) plus pgvector chunks | ✅ |
+| 17 | Login with accounts; users open only their own threads | ✅ |
+| 18 | Chat endpoint: check sign-in, run the agent, stream the answer, record usage | 🔄 |
 | 19 | Chat UI with Chainlit, as a client of the backend | ⬜ |
-| 20 | Business-flow tests: sign-in, wrong password, usage recorded | ⬜ |
-| 21 | Security tests: thread isolation, no endpoint without sign-in, API key never reaches the browser | ⬜ |
+| 20 | Business-flow tests: sign-in, wrong password, usage recorded | ✅ |
+| 21 | Security tests: thread isolation, no endpoint without sign-in, API key never reaches the browser | ✅ |
+
+Step 18 is tested with a fake graph; streaming and token counts from the real DeepSeek model are not yet checked (one paid question).
 
 ## Tahap 3 — Kembangkan bergantian
 

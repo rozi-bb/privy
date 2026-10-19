@@ -72,6 +72,20 @@ The baseline (step 8) is a single `call_model` node; `retrieve` and `rerank` are
 
 **Option A — the graph is called directly from our own backend.** A FastAPI backend imports the graph and streams answers; identity, threads, and the checkpointer are managed by the backend. Chosen because: one server, full control, easier to explain, and matches how the reference project is built. The LangGraph Agent Server is not used in production; `langgraph dev` and Studio are for development only.
 
+### Backend API
+
+| Route | Sign-in | What it does |
+|---|---|---|
+| `GET /health` | no | Server is up |
+| `POST /auth/register` | no | Create an account (password stored as an argon2 hash) |
+| `POST /auth/login` | no | Exchange email + password for a JWT |
+| `GET /me` | yes | The signed-in user |
+| `POST /threads`, `GET /threads` | yes | Start a thread; list the user's threads |
+| `GET /threads/{id}/messages` | yes | The conversation stored in a thread |
+| `POST /threads/{id}/chat` | yes | Ask a question; the answer streams back as Server-Sent Events, and token usage is recorded |
+
+A thread's id is also the checkpointer's `thread_id`. Every thread route first checks that the signed-in user owns the thread and answers 404 otherwise, so another user's thread looks exactly like one that does not exist.
+
 ## 5. State
 
 | Field | Meaning |
@@ -84,7 +98,7 @@ Later: `documents` (retrieved passages) and `reranked` are added when the retrie
 
 | Store | Holds | Used from |
 |---|---|---|
-| Postgres (Docker) | pgvector chunks with metadata; later: accounts, threads, usage | step 11 (vectors), steps 16–18 (app data) |
+| Postgres (Docker) | pgvector chunks with metadata; conversation checkpoints; app tables `users`, `threads`, `usage` (`src/backend/schema.sql`) | step 11 (vectors), steps 16–18 (app data) |
 | BM25 index | In-memory token index over the chunks (LangChain `BM25Retriever`) | step 11 |
 
 Postgres is the single real database; pgvector lives in it, so vectors and app data share one server.
