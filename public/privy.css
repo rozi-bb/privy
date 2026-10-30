@@ -1,0 +1,38 @@
+/* Chainlit serves /logo with no cache rule, so browsers can keep showing its
+   old logo for days. Bump ?v= here whenever the logo files change. */
+.dark img.logo {
+  content: url("/public/logo_dark.svg?v=2");
+}
+
+.light img.logo {
+  content: url("/public/logo_light.svg?v=2");
+}
+
+/* The login panel's text is real text, not part of the image: the image is
+   cropped to fit the window, which cut off anything drawn into it. */
+.bg-muted:has(> img[src*="login-background"])::before,
+.bg-muted:has(> img[src*="login-background"])::after {
+  position: absolute;
+  z-index: 1;
+  left: clamp(2rem, 10%, 5rem);
+  right: clamp(2rem, 10%, 5rem);
+}
+
+.bg-muted:has(> img[src*="login-background"])::before {
+  content: "Ask about the GDPR.";
+  bottom: 50%;
+  margin-bottom: 0.75rem;
+  color: #ffffff;
+  font-size: clamp(2rem, 3.2vw, 3rem);
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.bg-muted:has(> img[src*="login-background"])::after {
+  content: "Answers come from the official regulation text, with article citations.";
+  top: 50%;
+  max-width: 30rem;
+  color: #cfe6ea;
+  font-size: clamp(1rem, 1.4vw, 1.25rem);
+  line-height: 1.5;
+}

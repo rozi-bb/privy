@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0A2028"/>
+      <stop offset="0.6" stop-color="#0D3F4C"/>
+      <stop offset="1" stop-color="#0F6B7C"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="1200" fill="url(#bg)"/>
+  <!-- Centered: the page crops this image, so anything near the sides can be cut off. -->
+  <path transform="translate(438 760) scale(9)" d="M18 2.5 33 8v14c0 10-6.5 17.5-15 22C9.5 39.5 3 32 3 22V8Z" fill="none" stroke="#FFFFFF" stroke-opacity="0.07" stroke-width="1.5"/>
+</svg>
