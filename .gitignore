@@ -163,7 +163,9 @@ cython_debug/
 .langgraph_api/
 
 # runtime data
-.chainlit/translations/
+# Chainlit regenerates these; only our edited copy is kept.
+.chainlit/translations/*
+!.chainlit/translations/en-US.json
 .files/
 data/
 practice/fiqa/data/

@@ -76,6 +76,7 @@ uv run ruff check .                     # lint
 - `src/chat_ui/data_layer.py`: serves the sidebar's chat history from the backend; stores nothing itself
 - `evals/`: the LangSmith evaluation (`gdpr_dataset.json`, `run.py`)
 - `.chainlit/config.toml`, `chainlit.md`: Chainlit settings and welcome text
+- `public/`: the UI's look (logo, favicon, login panel, `theme.json` colors); `.chainlit/translations/en-US.json` holds its text
 - `scripts/build_index.py`: chunks the corpus and stores it in pgvector
 - `scripts/create_user.py`: creates an account through the backend
 - `practice/fiqa/`: the FiQA benchmark pipeline used to learn retrieval mechanics
