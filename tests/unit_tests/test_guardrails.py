@@ -8,6 +8,7 @@ from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.graph import START, StateGraph
 
+from agent.intent import MIN_SMALL_TALK, is_small_talk
 from agent.reranking import select_relevant
 from agent.state import State
 
@@ -170,3 +171,49 @@ async def test_answer_that_stays_invented_is_replaced_by_a_refusal(monkeypatch) 
     result, events = await _run(_one_node_graph("verify", privy.verify), state)
     assert result["messages"][-1].content == privy.UNVERIFIED_ANSWER
     assert events == [{"type": "replace", "content": privy.UNVERIFIED_ANSWER}]
+
+
+def test_only_a_confident_jev_answer_counts_as_small_talk() -> None:
+    assert is_small_talk(0.97)
+    assert is_small_talk(MIN_SMALL_TALK)
+    # Unsure, or Jev down: search the regulation rather than risk an
+    # ungrounded answer to a real question.
+    assert not is_small_talk(0.6)
+    assert not is_small_talk(None)
+
+
+def test_route_sends_small_talk_past_retrieval() -> None:
+    assert privy.route_after_intent({"is_small_talk_message": True}) == "small_talk"
+    assert privy.route_after_intent({"is_small_talk_message": False}) == "rewrite_query"
+
+
+async def test_classify_intent_gives_jev_the_conversation(monkeypatch) -> None:
+    calls: list = []
+
+    async def fake_probability(message: str, history: str) -> float:
+        calls.append((message, history))
+        return 0.95
+
+    monkeypatch.setattr(privy, "small_talk_probability", fake_probability)
+    state = {
+        "messages": [
+            HumanMessage(content="What is a DPO?"),
+            AIMessage(content="A data protection officer (Article 37)."),
+            HumanMessage(content="Thanks!"),
+        ]
+    }
+    assert await privy.classify_intent(state) == {"is_small_talk_message": True}
+    message, history = calls[0]
+    assert message == "Thanks!"
+    assert "What is a DPO?" in history
+
+
+def test_small_talk_replies_without_passages(monkeypatch) -> None:
+    prompts: list = []
+    monkeypatch.setattr(
+        privy, "_model", _recording_model("Hi! Ask me about the GDPR.", prompts)
+    )
+    result = privy.small_talk({"messages": [HumanMessage(content="Hello")]})
+    assert result["messages"][-1].content == "Hi! Ask me about the GDPR."
+    assert result["reranked"] == []
+    assert prompts[0][0].content == privy.SMALL_TALK_PROMPT

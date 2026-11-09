@@ -69,6 +69,7 @@ uv run ruff check .                     # lint
 - `src/agent/corpus.py`: GDPR chunking
 - `src/agent/embeddings.py`: local embeddings (fastembed)
 - `src/agent/retrieval.py`: BM25 keyword search and RRF fusion
+- `src/agent/intent.py`: Jev small-talk detection and its threshold
 - `src/agent/reranking.py`: Jev reranking and the relevance threshold
 - `src/agent/citations.py`: parses citations in an answer and checks them against the passages
 - `src/backend/`: the FastAPI backend — `main.py` routes and streaming, `auth.py` passwords and login tokens, `db.py` app-table queries, `schema.sql` app tables, `config.py` settings

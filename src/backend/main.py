@@ -173,6 +173,10 @@ def _graph_config(thread_id: UUID) -> dict[str, Any]:
 
 _ROLES = {"human": "user", "ai": "assistant"}
 
+# Nodes whose model output is the answer; the other model calls (the query
+# rewrite, a citation retry) must not reach the user as tokens.
+ANSWER_NODES = ("generate", "small_talk")
+
 
 @router.get("/threads/{thread_id}/messages")
 async def thread_messages(
@@ -200,7 +204,8 @@ async def _answer_events(
     Events: {"type": "token", "content": ...} for each piece of the answer,
     {"type": "replace", "content": ...} when the graph corrects an answer it
     already streamed, then {"type": "done"}, or {"type": "error", ...} if the
-    run failed. Answer tokens come from the `generate` node's model stream;
+    run failed. Answer tokens come from the model stream of the `generate`
+    and `small_talk` nodes;
     answers written without the model (and replacements) arrive on the
     graph's custom stream already in event form.
     """
@@ -215,7 +220,7 @@ async def _answer_events(
                 yield _sse(data)
                 continue
             message, metadata = data
-            if metadata.get("langgraph_node") == "generate" and message.text:
+            if metadata.get("langgraph_node") in ANSWER_NODES and message.text:
                 yield _sse({"type": "token", "content": message.text})
             # Every model call counts (the follow-up rewrite and a citation
             # retry too). With streaming, DeepSeek reports token counts on the

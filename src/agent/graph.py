@@ -1,6 +1,8 @@
-"""Privy graph: rewrite_query → retrieve → rerank → generate → verify.
+"""Privy graph: classify_intent → rewrite_query → retrieve → rerank → generate → verify.
 
-The question is first rewritten into a standalone search query in the
+Jev first checks whether the message is small talk (a greeting, thanks, "what
+can you do?"); when it is confident, `small_talk` replies naturally without
+searching the regulation. Everything else is first rewritten into a standalone search query in the
 regulation's own terms, so "who do I report it to?" after a question about
 breaches is searched as breach notification to the supervisory authority,
 and "can I sue?" as judicial remedy and compensation. The query goes through hybrid retrieval (BM25 + dense, fused with RRF) and Jev
@@ -12,6 +14,7 @@ without calling the model. Otherwise DeepSeek answers from the passages, and
 
 from __future__ import annotations
 
+import asyncio
 import os
 from functools import cache
 
@@ -24,6 +27,7 @@ from langgraph.graph import END, START, StateGraph
 from agent.citations import allowed_labels, invalid_citations
 from agent.corpus import load_gdpr_chunks
 from agent.embeddings import LocalEmbeddings
+from agent.intent import is_small_talk, small_talk_probability
 from agent.reranking import rerank_documents
 from agent.retrieval import KeywordRetriever, hybrid_search
 from agent.state import State
@@ -77,6 +81,17 @@ Passages:
 {passages}
 """
 
+SMALL_TALK_PROMPT = """\
+You are Privy, an assistant that answers questions about the GDPR \
+(the EU General Data Protection Regulation) from the official regulation text.
+
+The user's last message is small talk, such as a greeting or thanks. Reply \
+warmly in one or two short sentences, in the user's language, and invite them \
+to ask about their data protection rights or obligations. Do not say anything \
+about what the regulation contains and do not cite any article or recital. \
+If the message also asks about anything else, do not answer it: say in one \
+sentence that you only answer questions about the GDPR."""
+
 RETRY_NOTE = """
 Your previous answer cited {invalid}, which are not among the passages. \
 Write the answer again and cite only these: {allowed}."""
@@ -111,12 +126,12 @@ def _keyword_retriever() -> KeywordRetriever:
     return KeywordRetriever(load_gdpr_chunks())
 
 
-def _vector_store():
+def _vector_store(embeddings: LocalEmbeddings):
     """Open the pgvector store per call, so importing the graph never needs the DB."""
     from langchain_postgres import PGVector
 
     return PGVector(
-        embeddings=_embeddings(),
+        embeddings=embeddings,
         collection_name="gdpr",
         connection=DATABASE_URL,
         use_jsonb=True,
@@ -149,6 +164,32 @@ def _history(messages: list[BaseMessage]) -> str:
     return "\n".join(lines)
 
 
+async def classify_intent(state: State) -> dict:
+    """Ask Jev whether the last message is small talk."""
+    messages = state["messages"]
+    probability = await small_talk_probability(
+        messages[-1].text, _history(messages[:-1])
+    )
+    return {"is_small_talk_message": is_small_talk(probability)}
+
+
+def route_after_intent(state: State) -> str:
+    """Small talk gets a natural reply; everything else searches the regulation."""
+    return "small_talk" if state["is_small_talk_message"] else "rewrite_query"
+
+
+def small_talk(state: State) -> dict:
+    """Reply to small talk without retrieval.
+
+    `reranked` is cleared so the previous answer's passages are not shown as
+    this reply's sources.
+    """
+    response = _model().invoke(
+        [SystemMessage(content=SMALL_TALK_PROMPT), *state["messages"]]
+    )
+    return {"messages": [response], "reranked": []}
+
+
 def rewrite_query(state: State) -> dict:
     """Turn the last message into a standalone query in the regulation's terms.
 
@@ -171,10 +212,16 @@ def rewrite_query(state: State) -> dict:
 
 async def retrieve(state: State) -> dict:
     """Hybrid retrieval: BM25 + dense in parallel, fused with RRF."""
+    # The first call loads the embedding model, reads the corpus and imports
+    # the Postgres driver, all from disk; in a thread, so the event loop
+    # keeps serving other requests.
+    keyword_retriever = await asyncio.to_thread(_keyword_retriever)
+    embeddings = await asyncio.to_thread(_embeddings)
+    vector_store = await asyncio.to_thread(_vector_store, embeddings)
     documents = await hybrid_search(
         state["search_query"],
-        _keyword_retriever(),
-        _vector_store(),
+        keyword_retriever,
+        vector_store,
         keyword_k=TOP_K,
         vector_k=TOP_K,
         top_k=TOP_K,
@@ -251,13 +298,19 @@ def build_graph(checkpointer=None):
     conversations survive restarts.
     """
     workflow = StateGraph(State)
+    workflow.add_node("classify_intent", classify_intent)
+    workflow.add_node("small_talk", small_talk)
     workflow.add_node("rewrite_query", rewrite_query)
     workflow.add_node("retrieve", retrieve)
     workflow.add_node("rerank", rerank)
     workflow.add_node("not_found", not_found)
     workflow.add_node("generate", generate)
     workflow.add_node("verify", verify)
-    workflow.add_edge(START, "rewrite_query")
+    workflow.add_edge(START, "classify_intent")
+    workflow.add_conditional_edges(
+        "classify_intent", route_after_intent, ["small_talk", "rewrite_query"]
+    )
+    workflow.add_edge("small_talk", END)
     workflow.add_edge("rewrite_query", "retrieve")
     workflow.add_edge("retrieve", "rerank")
     workflow.add_conditional_edges(

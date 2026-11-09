@@ -3,13 +3,13 @@
 | | |
 |---|---|
 | Status | Draft |
-| Last updated | 2026-10-19 |
+| Last updated | 2026-11-09 |
 
 How Privy is built. What it does is in [prd.md](prd.md).
 
 ## 1. Overview
 
-One source of knowledge: the official GDPR text. The pipeline follows the classic RAG flow, with hybrid retrieval instead of vector-only search.
+One source of knowledge: the official GDPR text. The pipeline follows the classic RAG flow, with hybrid retrieval instead of vector-only search. Before it, Jev decides whether a message is small talk; small talk gets a short reply without retrieval (§2).
 
 ```mermaid
 flowchart LR
@@ -20,8 +20,10 @@ flowchart LR
 
     subgraph query["Query (online)"]
         Q["User question"]
-        Q --> S["Semantic search<br/>(pgvector)"]
-        Q --> K["Keyword search<br/>(BM25)"]
+        Q --> I["Small talk?<br/>Jev (TypeSafe)"]
+        I -->|yes| STR["Short reply<br/>DeepSeek"]
+        I -->|no| S["Semantic search<br/>(pgvector)"]
+        I -->|no| K["Keyword search<br/>(BM25)"]
         S --> RRF["Reciprocal Rank Fusion"]
         K --> RRF
         RRF --> TOP["Top-K"]
@@ -37,7 +39,10 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    START((start)) --> RW["rewrite_query"]
+    START((start)) --> CI["classify_intent"]
+    CI -->|small talk| ST["small_talk"]
+    CI -->|anything else| RW["rewrite_query"]
+    ST --> END
     RW --> RET["retrieve"]
     RET --> RR["rerank"]
     RR -->|relevant passages| GEN["generate"]
@@ -49,6 +54,8 @@ flowchart TD
 
 | Node | What it does | Code |
 |---|---|---|
+| `classify_intent` | Asks Jev whether the last message is small talk (a greeting, thanks, "what can you do?"). Only a probability of at least `MIN_SMALL_TALK` (0.9) counts; when unsure or when Jev is down, the message takes the retrieval path, because a real question answered without the regulation's text is worse than a greeting that goes through retrieval | `src/agent/intent.py`, `src/agent/graph.py` |
+| `small_talk` | Replies to small talk with DeepSeek in one or two sentences, without retrieval and without citing the regulation. If the message also asks about another topic (Jev took it for small talk by mistake), it declines that part instead of answering from general knowledge | `src/agent/graph.py` |
 | `rewrite_query` | Rewrites the last message into a standalone search query in the regulation's terms ("can I sue?" → judicial remedy, compensation; "who do I report it to?" after a breach question → breach notification). One small DeepSeek call | `src/agent/graph.py` |
 | `retrieve` | Hybrid retrieval: BM25 + dense in parallel, fused with RRF, returns Top-K passages | `src/agent/retrieval.py` |
 | `rerank` | Scores each candidate with Jev and keeps the Top-N that score at least `MIN_RELEVANCE`; if Jev is down, keeps the fusion order | `src/agent/reranking.py` |
@@ -56,7 +63,9 @@ flowchart TD
 | `generate` | Writes the answer with DeepSeek, grounded in the passages, with citations | `src/agent/graph.py` |
 | `verify` | Checks that every cited article appears in a passage (as its label or referred to in its text). Otherwise rewrites the answer once; if it still cites something else, replaces it with an honest refusal | `src/agent/citations.py`, `src/agent/graph.py` |
 
-`not_found` and `verify` send their text on LangGraph's custom stream, so the backend can pass it on: a correction arrives as a `replace` event because the client has already seen the first version.
+The backend streams the model tokens of `generate` and `small_talk` (`ANSWER_NODES` in `src/backend/main.py`); the other model calls, such as the query rewrite, never reach the user. `not_found` and `verify` send their text on LangGraph's custom stream, so the backend can pass it on: a correction arrives as a `replace` event because the client has already seen the first version.
+
+`retrieve` is an async node, so its first call loads the embedding model, reads the corpus for BM25 and imports the Postgres driver in a thread (`asyncio.to_thread`): all three read from disk, and doing that on the event loop would stall every other request. `langgraph dev` rejects such blocking calls outright.
 
 The baseline (step 8) is a single `call_model` node; `retrieve` and `rerank` are added in step 11.
 
@@ -102,6 +111,7 @@ A thread's id is also the checkpointer's `thread_id`. Every thread route first c
 | Field | Meaning |
 |---|---|
 | `messages` | The conversation (LangChain messages, `add_messages` reducer) |
+| `is_small_talk_message` | Whether Jev judged the last message to be small talk |
 | `search_query` | The last message rewritten for retrieval |
 | `documents` | Top-K passages from hybrid retrieval |
 | `reranked` | Top-N relevant passages shown to the model |
@@ -119,9 +129,12 @@ Postgres is the single real database; pgvector lives in it, so vectors and app d
 
 | Use | Model |
 |---|---|
-| Answers | `deepseek-flash` (DeepSeek); `deepseek-v4-pro` if evaluation shows it is needed |
+| Answers, query rewrite, small-talk replies | `deepseek-flash` (DeepSeek); `deepseek-v4-pro` if evaluation shows it is needed |
 | Embeddings | `BAAI/bge-small-en-v1.5`, local through fastembed |
+| Small-talk detection | Jev (TypeSafe), one yes/no probability question per message |
 | Reranking | Jev (TypeSafe), via probability questions; retries for rate limits |
+
+Jev rather than the rewrite call decides small talk because it returns a calibrated probability: the rule "when unsure, search the regulation" becomes a threshold in code, like `MIN_RELEVANCE` for reranking. It costs one extra Jev call on every message; small talk in return skips the rewrite, retrieval and up to 20 reranking calls.
 
 ## 8. Observability
 
@@ -149,7 +162,7 @@ FiQA is a **practice benchmark**, not part of the product. It is run once to lea
 | `honest_dont_know` | Code: for uncovered questions, the first sentence declines; correctly cited related context may follow |
 | `relevance` | LLM judge (DeepSeek): the answer addresses the question, consistent with the reference notes |
 
-A run costs API credit (about 70 DeepSeek and 460 Jev calls), so it is run deliberately, not in the test suite.
+A run costs API credit (about 70 DeepSeek and 460 Jev calls), so it is run deliberately, not in the test suite. These counts predate small-talk detection, which adds one Jev call per question. The dataset has no small-talk examples yet.
 
 ## 10. Open decisions
 
@@ -158,3 +171,6 @@ A run costs API credit (about 70 DeepSeek and 460 Jev calls), so it is run delib
 | Top-K, Top-N, and the relevance threshold | `TOP_K = 20`, `TOP_N = 4`, `MIN_RELEVANCE = 0.5` (`src/agent/graph.py`) | **Not tuned** (roadmap step 23). These are the starting values from step 11. The step 13 evaluation passed with them, but no other values were compared. Tuning means running the evaluation for several combinations (e.g. Top-K 10/20/30, threshold 0.3/0.5/0.7) and keeping the cheapest one that still meets the targets; a lower Top-K also means fewer Jev calls per question. Each combination is one paid evaluation run. |
 | Chunk size for very long articles (e.g., Article 83) | Articles over 1,600 characters are split into paragraph groups of about 1,200 (`src/agent/corpus.py`) | **Not tuned.** `OVERLAP_CHARS = 200` is defined but not used: parts do not overlap. |
 | A cross-encoder as an alternative reranker, for comparison with Jev | — | **Not done.** |
+| Small-talk threshold | `MIN_SMALL_TALK = 0.9` (`src/agent/intent.py`) | **Not tuned, not evaluated.** Needs small-talk examples in the evaluation dataset, including greetings mixed with a real question ("hi, can I delete my data?"), which must still take the retrieval path. |
+| Small-talk check before or alongside the rewrite | Before: `classify_intent` runs, then `rewrite_query` | **Not measured.** Running both at once would hide Jev's latency on GDPR questions, but small talk would then still pay for the rewrite call. |
+| Questions that need several searches (multi-article) | One search per question | **Not evaluated.** If the evaluation shows answers missing a second article, try query decomposition first; a ReAct loop only if that is not enough. |

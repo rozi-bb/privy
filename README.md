@@ -22,7 +22,7 @@ One conversation in the chat UI (answers shortened):
 >
 > **Privy:** I could not find an answer to that in the GDPR. I answer questions about the EU General Data Protection Regulation from its official text; could you rephrase, or ask about a specific right or obligation?
 
-How each answer is made: the question is rewritten into the regulation's terms (so the follow-up becomes a question about breach notification), searched with BM25 and embeddings, reranked by Jev, answered by DeepSeek from the top passages only, and checked so that every cited article appears in those passages. When no passage is relevant, Privy says so without calling the model.
+How each answer is made: Jev first checks whether the message is small talk, such as a greeting; if it is sure, Privy replies briefly without searching the regulation. Otherwise the question is rewritten into the regulation's terms (so the follow-up becomes a question about breach notification), searched with BM25 and embeddings, reranked by Jev, answered by DeepSeek from the top passages only, and checked so that every cited article appears in those passages. When no passage is relevant, Privy says so without calling the model.
 
 ## Evaluation
 
